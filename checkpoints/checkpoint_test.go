@@ -1,3 +1,6 @@
+//go:build darwin
+// +build darwin
+
 package checkpoints
 
 import (
@@ -16,13 +19,13 @@ func TestCheckpointJSONSaveLoad(t *testing.T) {
 	// Create a simple model spec for testing
 	inputShape := []int{1, 28, 28, 1} // MNIST-like shape
 	builder := layers.NewModelBuilder(inputShape)
-	
+
 	model, err := builder.
 		AddDense(128, true, "dense1").
 		AddReLU("relu1").
 		AddDense(10, true, "output").
 		Compile()
-	
+
 	if err != nil {
 		t.Fatalf("Failed to create test model: %v", err)
 	}
@@ -74,10 +77,10 @@ func TestCheckpointJSONSaveLoad(t *testing.T) {
 	// Test JSON save
 	saver := NewCheckpointSaver(FormatJSON)
 	testFile := "test_checkpoint.json"
-	
+
 	// Clean up
 	defer os.Remove(testFile)
-	
+
 	err = saver.SaveCheckpoint(checkpoint, testFile)
 	if err != nil {
 		t.Fatalf("Failed to save JSON checkpoint: %v", err)
@@ -91,12 +94,12 @@ func TestCheckpointJSONSaveLoad(t *testing.T) {
 
 	// Verify loaded data
 	if loadedCheckpoint.TrainingState.Epoch != checkpoint.TrainingState.Epoch {
-		t.Errorf("Epoch mismatch: expected %d, got %d", 
+		t.Errorf("Epoch mismatch: expected %d, got %d",
 			checkpoint.TrainingState.Epoch, loadedCheckpoint.TrainingState.Epoch)
 	}
 
 	if len(loadedCheckpoint.Weights) != len(checkpoint.Weights) {
-		t.Errorf("Weight count mismatch: expected %d, got %d", 
+		t.Errorf("Weight count mismatch: expected %d, got %d",
 			len(checkpoint.Weights), len(loadedCheckpoint.Weights))
 	}
 
@@ -104,21 +107,21 @@ func TestCheckpointJSONSaveLoad(t *testing.T) {
 	if len(loadedCheckpoint.Weights) > 0 {
 		originalWeight := checkpoint.Weights[0]
 		loadedWeight := loadedCheckpoint.Weights[0]
-		
+
 		if originalWeight.Name != loadedWeight.Name {
-			t.Errorf("Weight name mismatch: expected %s, got %s", 
+			t.Errorf("Weight name mismatch: expected %s, got %s",
 				originalWeight.Name, loadedWeight.Name)
 		}
-		
+
 		if len(originalWeight.Data) != len(loadedWeight.Data) {
-			t.Errorf("Weight data length mismatch: expected %d, got %d", 
+			t.Errorf("Weight data length mismatch: expected %d, got %d",
 				len(originalWeight.Data), len(loadedWeight.Data))
 		}
-		
+
 		// Check first few values
 		for i := 0; i < 10 && i < len(originalWeight.Data); i++ {
 			if originalWeight.Data[i] != loadedWeight.Data[i] {
-				t.Errorf("Weight data mismatch at index %d: expected %f, got %f", 
+				t.Errorf("Weight data mismatch at index %d: expected %f, got %f",
 					i, originalWeight.Data[i], loadedWeight.Data[i])
 			}
 		}
@@ -131,13 +134,13 @@ func TestCheckpointONNXExport(t *testing.T) {
 	// Create a simple model spec for testing
 	inputShape := []int{1, 28, 28, 1} // MNIST-like shape
 	builder := layers.NewModelBuilder(inputShape)
-	
+
 	model, err := builder.
 		AddDense(64, true, "dense1").
 		AddReLU("relu1").
 		AddDense(10, true, "output").
 		Compile()
-	
+
 	if err != nil {
 		t.Fatalf("Failed to create test model: %v", err)
 	}
@@ -179,10 +182,10 @@ func TestCheckpointONNXExport(t *testing.T) {
 	// Test ONNX export
 	saver := NewCheckpointSaver(FormatONNX)
 	testFile := "test_model.onnx"
-	
+
 	// Clean up
 	defer os.Remove(testFile)
-	
+
 	err = saver.SaveCheckpoint(checkpoint, testFile)
 	if err != nil {
 		t.Fatalf("Failed to export ONNX model: %v", err)
@@ -302,7 +305,7 @@ func TestJSONLoadFileErrors(t *testing.T) {
 	// Test loading invalid JSON file
 	invalidJSONFile := "invalid.json"
 	defer os.Remove(invalidJSONFile)
-	
+
 	if err := os.WriteFile(invalidJSONFile, []byte("{invalid json"), 0644); err != nil {
 		t.Fatalf("Failed to create invalid JSON file: %v", err)
 	}
@@ -351,7 +354,7 @@ func TestJSONSaveFileErrors(t *testing.T) {
 // TestCheckpointMetadataDefaults tests automatic metadata setting
 func TestCheckpointMetadataDefaults(t *testing.T) {
 	saver := NewCheckpointSaver(FormatJSON)
-	
+
 	// Create checkpoint with minimal metadata
 	inputShape := []int{1, 10}
 	builder := layers.NewModelBuilder(inputShape)
@@ -369,7 +372,7 @@ func TestCheckpointMetadataDefaults(t *testing.T) {
 	// Save checkpoint
 	testFile := "test_metadata.json"
 	defer os.Remove(testFile)
-	
+
 	err = saver.SaveCheckpoint(checkpoint, testFile)
 	if err != nil {
 		t.Fatalf("Failed to save checkpoint: %v", err)
@@ -494,19 +497,19 @@ func (mt *MockTensor) Release() {
 func TestExtractWeightsFromTensors(t *testing.T) {
 	// Since we can't easily create real memory.Tensor objects for testing,
 	// let's test the error conditions and validation logic
-	
+
 	// Test with nil tensors and model - this will panic in the actual function
 	// so we need to skip this test case and focus on testing with valid models
 
 	// Create a test model with Dense layers
 	inputShape := []int{1, 32}
 	builder := layers.NewModelBuilder(inputShape)
-	
+
 	model, err := builder.
-		AddDense(16, true, "dense1").  // Dense with bias
-		AddDense(8, false, "dense2").  // Dense without bias
+		AddDense(16, true, "dense1"). // Dense with bias
+		AddDense(8, false, "dense2"). // Dense without bias
 		Compile()
-	
+
 	if err != nil {
 		t.Fatalf("Failed to create test model: %v", err)
 	}
@@ -609,12 +612,12 @@ func TestLoadWeightsIntoTensors(t *testing.T) {
 
 // Helper function to verify contains functionality
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    (len(s) > len(substr) && 
-		     (s[:len(substr)] == substr || 
-		      s[len(s)-len(substr):] == substr || 
-		      containsAtIndex(s, substr))))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			(len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					containsAtIndex(s, substr))))
 }
 
 func containsAtIndex(s, substr string) bool {
@@ -667,7 +670,7 @@ func TestONNXImportFileErrors(t *testing.T) {
 	// Test importing invalid protobuf file
 	invalidFile := "invalid.onnx"
 	defer os.Remove(invalidFile)
-	
+
 	if err := os.WriteFile(invalidFile, []byte("invalid protobuf data"), 0644); err != nil {
 		t.Fatalf("Failed to create invalid protobuf file: %v", err)
 	}
@@ -718,7 +721,7 @@ func TestONNXFormatHandling(t *testing.T) {
 		},
 	}
 
-	// Test ONNX format handling 
+	// Test ONNX format handling
 	onnxSaver := NewCheckpointSaver(FormatONNX)
 	if onnxSaver.format != FormatONNX {
 		t.Errorf("Expected ONNX format, got %d", onnxSaver.format)
@@ -727,7 +730,7 @@ func TestONNXFormatHandling(t *testing.T) {
 	// Test ONNX save operation (should attempt to create ONNX file)
 	onnxFile := "test_format.onnx"
 	defer os.Remove(onnxFile)
-	
+
 	err = onnxSaver.SaveCheckpoint(checkpoint, onnxFile)
 	// This may fail due to protobuf generation, but should not panic
 	if err != nil {
@@ -777,7 +780,7 @@ func TestMemoryManagerMocking(t *testing.T) {
 func TestWeightTensorValidation(t *testing.T) {
 	// Test different weight types
 	tests := []struct {
-		weight WeightTensor
+		weight         WeightTensor
 		isRunningStats bool
 	}{
 		{
@@ -809,7 +812,7 @@ func TestWeightTensorValidation(t *testing.T) {
 	for _, test := range tests {
 		isRunning := test.weight.Type == "running_mean" || test.weight.Type == "running_var"
 		if isRunning != test.isRunningStats {
-			t.Errorf("Weight type %s: expected running stats %t, got %t", 
+			t.Errorf("Weight type %s: expected running stats %t, got %t",
 				test.weight.Type, test.isRunningStats, isRunning)
 		}
 	}
@@ -866,7 +869,7 @@ func TestCompleteCheckpointRoundTrip(t *testing.T) {
 	// Initialize weights with pattern data for verification
 	for i, weight := range weights {
 		for j := range weight.Data {
-			weights[i].Data[j] = float32(i*100 + j) * 0.01
+			weights[i].Data[j] = float32(i*100+j) * 0.01
 		}
 	}
 
@@ -920,17 +923,17 @@ func TestCompleteCheckpointRoundTrip(t *testing.T) {
 
 	// Verify round-trip integrity
 	if loaded.TrainingState.Epoch != original.TrainingState.Epoch {
-		t.Errorf("Training state epoch mismatch: expected %d, got %d", 
+		t.Errorf("Training state epoch mismatch: expected %d, got %d",
 			original.TrainingState.Epoch, loaded.TrainingState.Epoch)
 	}
 
 	if loaded.TrainingState.LearningRate != original.TrainingState.LearningRate {
-		t.Errorf("Learning rate mismatch: expected %f, got %f", 
+		t.Errorf("Learning rate mismatch: expected %f, got %f",
 			original.TrainingState.LearningRate, loaded.TrainingState.LearningRate)
 	}
 
 	if len(loaded.Weights) != len(original.Weights) {
-		t.Errorf("Weight count mismatch: expected %d, got %d", 
+		t.Errorf("Weight count mismatch: expected %d, got %d",
 			len(original.Weights), len(loaded.Weights))
 	}
 
@@ -943,12 +946,12 @@ func TestCompleteCheckpointRoundTrip(t *testing.T) {
 
 		loadedWeight := loaded.Weights[i]
 		if originalWeight.Name != loadedWeight.Name {
-			t.Errorf("Weight %d name mismatch: expected %s, got %s", 
+			t.Errorf("Weight %d name mismatch: expected %s, got %s",
 				i, originalWeight.Name, loadedWeight.Name)
 		}
 
 		if len(originalWeight.Data) != len(loadedWeight.Data) {
-			t.Errorf("Weight %d data length mismatch: expected %d, got %d", 
+			t.Errorf("Weight %d data length mismatch: expected %d, got %d",
 				i, len(originalWeight.Data), len(loadedWeight.Data))
 			continue
 		}
@@ -956,7 +959,7 @@ func TestCompleteCheckpointRoundTrip(t *testing.T) {
 		// Check data values
 		for j, originalVal := range originalWeight.Data {
 			if j < len(loadedWeight.Data) && originalVal != loadedWeight.Data[j] {
-				t.Errorf("Weight %d data[%d] mismatch: expected %f, got %f", 
+				t.Errorf("Weight %d data[%d] mismatch: expected %f, got %f",
 					i, j, originalVal, loadedWeight.Data[j])
 				break // Only report first mismatch
 			}
@@ -968,19 +971,19 @@ func TestCompleteCheckpointRoundTrip(t *testing.T) {
 		t.Error("Loaded checkpoint missing optimizer state")
 	} else {
 		if loaded.OptimizerState.Type != original.OptimizerState.Type {
-			t.Errorf("Optimizer type mismatch: expected %s, got %s", 
+			t.Errorf("Optimizer type mismatch: expected %s, got %s",
 				original.OptimizerState.Type, loaded.OptimizerState.Type)
 		}
 	}
 
 	// Verify metadata
 	if loaded.Metadata.Framework != original.Metadata.Framework {
-		t.Errorf("Framework mismatch: expected %s, got %s", 
+		t.Errorf("Framework mismatch: expected %s, got %s",
 			original.Metadata.Framework, loaded.Metadata.Framework)
 	}
 
 	if len(loaded.Metadata.Tags) != len(original.Metadata.Tags) {
-		t.Errorf("Tags count mismatch: expected %d, got %d", 
+		t.Errorf("Tags count mismatch: expected %d, got %d",
 			len(original.Metadata.Tags), len(loaded.Metadata.Tags))
 	}
 
