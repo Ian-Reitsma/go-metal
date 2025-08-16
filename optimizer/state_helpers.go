@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -65,11 +67,10 @@ func extractBoolParam(params map[string]interface{}, key string, defaultValue bo
 	return defaultValue
 }
 
-// extractUint64Param safely extracts a uint64 parameter from the state map  
+// extractUint64Param safely extracts a uint64 parameter from the state map
 func extractUint64Param(params map[string]interface{}, key string, defaultValue uint64) uint64 {
 	if val, ok := params[key].(float64); ok {
 		return uint64(val)
 	}
 	return defaultValue
 }
-

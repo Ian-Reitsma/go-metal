@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -32,9 +34,9 @@ type AdamOptimizerState struct {
 
 	// Buffer sizes for proper cleanup
 	bufferSizes []int
-	
+
 	// RESOURCE LEAK FIX: Command buffer pooling
-	commandPool unsafe.Pointer  // Optional command buffer pool for Metal operations
+	commandPool unsafe.Pointer // Optional command buffer pool for Metal operations
 	usePooling  bool           // Whether to use command buffer pooling
 }
 
@@ -184,7 +186,7 @@ func (adam *AdamOptimizerState) Step(gradientBuffers []unsafe.Pointer) error {
 
 	// DEBUG: Add logging to verify Adam is being called
 	// if adam.StepCount%10 == 1 {
-	//	fmt.Printf("🔧 Adam step %d: lr=%.6f, %d weights, %d gradients\n", 
+	//	fmt.Printf("🔧 Adam step %d: lr=%.6f, %d weights, %d gradients\n",
 	//		adam.StepCount, adam.LearningRate, len(adam.WeightBuffers), len(gradientBuffers))
 	// }
 
@@ -209,21 +211,21 @@ func (adam *AdamOptimizerState) Step(gradientBuffers []unsafe.Pointer) error {
 	// 		adam.commandPool,
 	// 	)
 	// } else {
-		// Force non-pooled version to test learning
-		err = cgo_bridge.ExecuteAdamStepMPSGraph(
-			adam.device,
-			adam.WeightBuffers,
-			gradientBuffers,
-			adam.MomentumBuffers,
-			adam.VarianceBuffers,
-			adam.bufferSizes,
-			adam.LearningRate,
-			adam.Beta1,
-			adam.Beta2,
-			adam.Epsilon,
-			adam.WeightDecay,
-			int(adam.StepCount),
-		)
+	// Force non-pooled version to test learning
+	err = cgo_bridge.ExecuteAdamStepMPSGraph(
+		adam.device,
+		adam.WeightBuffers,
+		gradientBuffers,
+		adam.MomentumBuffers,
+		adam.VarianceBuffers,
+		adam.bufferSizes,
+		adam.LearningRate,
+		adam.Beta1,
+		adam.Beta2,
+		adam.Epsilon,
+		adam.WeightDecay,
+		int(adam.StepCount),
+	)
 	// }
 
 	if err != nil {
@@ -241,7 +243,7 @@ func pow(x, y float32) float32 {
 	if y == 1 {
 		return x
 	}
-	
+
 	// Simple implementation for small integer powers
 	result := float32(1.0)
 	for i := 0; i < int(y); i++ {
@@ -316,7 +318,7 @@ func (adam *AdamOptimizerState) Cleanup() {
 			}
 		}
 	}
-	
+
 	// Clear slices
 	adam.MomentumBuffers = nil
 	adam.VarianceBuffers = nil
@@ -328,19 +330,19 @@ func (adam *AdamOptimizerState) Cleanup() {
 // Transfers GPU state to CPU in a single batched operation per buffer type
 func (adam *AdamOptimizerState) GetState() (*OptimizerState, error) {
 	stateData := make([]checkpoints.OptimizerTensor, 0, len(adam.MomentumBuffers)*2)
-	
+
 	// Extract momentum buffers
 	for i, buffer := range adam.MomentumBuffers {
 		if buffer != nil {
 			// Calculate number of elements (buffer size / 4 bytes per float32)
 			numElements := adam.bufferSizes[i] / 4
-			
+
 			// Read GPU buffer to CPU
 			data, err := cgo_bridge.CopyMetalBufferToFloat32Array(buffer, numElements)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read momentum buffer %d: %v", i, err)
 			}
-			
+
 			stateData = append(stateData, checkpoints.OptimizerTensor{
 				Name:      fmt.Sprintf("momentum_%d", i),
 				Shape:     []int{len(data)},
@@ -349,19 +351,19 @@ func (adam *AdamOptimizerState) GetState() (*OptimizerState, error) {
 			})
 		}
 	}
-	
-	// Extract variance buffers  
+
+	// Extract variance buffers
 	for i, buffer := range adam.VarianceBuffers {
 		if buffer != nil {
 			// Calculate number of elements
 			numElements := adam.bufferSizes[i] / 4
-			
+
 			// Read GPU buffer to CPU
 			data, err := cgo_bridge.CopyMetalBufferToFloat32Array(buffer, numElements)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read variance buffer %d: %v", i, err)
 			}
-			
+
 			stateData = append(stateData, checkpoints.OptimizerTensor{
 				Name:      fmt.Sprintf("variance_%d", i),
 				Shape:     []int{len(data)},
@@ -370,7 +372,7 @@ func (adam *AdamOptimizerState) GetState() (*OptimizerState, error) {
 			})
 		}
 	}
-	
+
 	return &OptimizerState{
 		Type: "Adam",
 		Parameters: map[string]interface{}{
@@ -392,7 +394,7 @@ func (adam *AdamOptimizerState) LoadState(state *OptimizerState) error {
 	if err := validateStateType("Adam", state); err != nil {
 		return err
 	}
-	
+
 	// Restore hyperparameters
 	if lr, ok := state.Parameters["learning_rate"].(float64); ok {
 		adam.LearningRate = float32(lr)
@@ -412,21 +414,21 @@ func (adam *AdamOptimizerState) LoadState(state *OptimizerState) error {
 	if sc, ok := state.Parameters["step_count"].(float64); ok {
 		adam.StepCount = uint64(sc)
 	}
-	
+
 	// Restore GPU buffers
 	for _, tensor := range state.StateData {
 		idx := extractBufferIndex(tensor.Name)
 		if idx < 0 || idx >= len(adam.bufferSizes) {
 			return fmt.Errorf("invalid buffer index in tensor name: %s", tensor.Name)
 		}
-		
+
 		// Validate data size matches buffer size
 		expectedElements := adam.bufferSizes[idx] / 4
 		if len(tensor.Data) != expectedElements {
 			return fmt.Errorf("data size mismatch for %s: expected %d elements, got %d",
 				tensor.Name, expectedElements, len(tensor.Data))
 		}
-		
+
 		// Write data back to GPU buffer
 		switch tensor.StateType {
 		case "momentum":
@@ -438,7 +440,7 @@ func (adam *AdamOptimizerState) LoadState(state *OptimizerState) error {
 			}
 		case "variance":
 			if adam.VarianceBuffers[idx] == nil {
-				return fmt.Errorf("variance buffer %d is nil", idx) 
+				return fmt.Errorf("variance buffer %d is nil", idx)
 			}
 			if err := cgo_bridge.CopyFloat32ArrayToMetalBuffer(adam.VarianceBuffers[idx], tensor.Data); err != nil {
 				return fmt.Errorf("failed to restore variance buffer %d: %v", idx, err)
@@ -447,6 +449,6 @@ func (adam *AdamOptimizerState) LoadState(state *OptimizerState) error {
 			return fmt.Errorf("unknown state type: %s", tensor.StateType)
 		}
 	}
-	
+
 	return nil
 }

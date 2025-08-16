@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
@@ -15,22 +17,22 @@ func TestCreateTrainingEngineDynamic(t *testing.T) {
 	// Create a simple layer specification for dynamic engine
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 10, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 5, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 10, 5, 0, 0, 0, 0, 0}, // HasBias=1, input_size=10, output_size=5
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 10, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 5, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 10, 5, 0, 0, 0, 0, 0}, // HasBias=1, input_size=10, output_size=5
+			ParamIntCount:  3,
 		},
 		{
-			LayerType:       0, // Dense  
-			InputShape:      [4]int32{1, 5, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 2, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 5, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=5, output_size=2
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 5, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 2, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 5, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=5, output_size=2
+			ParamIntCount:  3,
 		},
 	}
 
@@ -55,8 +57,8 @@ func TestCreateTrainingEngineDynamic(t *testing.T) {
 
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -94,8 +96,8 @@ func TestCreateTrainingEngineConstantWeights(t *testing.T) {
 	engine, err := CreateTrainingEngineConstantWeights(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -110,7 +112,7 @@ func TestCreateTrainingEngineConstantWeights(t *testing.T) {
 			defer DestroyTrainingEngine(engine)
 		}
 	}
-	
+
 	// Test demonstrates that constant weights engine creation works
 
 	t.Log("✅ CreateTrainingEngineConstantWeights test passed")
@@ -126,16 +128,16 @@ func TestCreateInferenceEngine(t *testing.T) {
 	// Create layer specifications for the inference engine
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 10, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 5, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 10, 5, 0, 0, 0, 0, 0}, // HasBias=1, input_size=10, output_size=5
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 10, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 5, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 10, 5, 0, 0, 0, 0, 0}, // HasBias=1, input_size=10, output_size=5
+			ParamIntCount:  3,
 		},
 	}
-	
+
 	config := InferenceConfig{
 		UseDynamicEngine:       true,
 		BatchNormInferenceMode: false,
@@ -153,8 +155,8 @@ func TestCreateInferenceEngine(t *testing.T) {
 	engine, err := CreateInferenceEngine(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -169,7 +171,7 @@ func TestCreateInferenceEngine(t *testing.T) {
 			DestroyInferenceEngine(engine)
 		}
 	}
-	
+
 	// Test demonstrates that inference engine creation with layer specs works
 
 	t.Log("✅ CreateInferenceEngine test passed")
@@ -250,7 +252,7 @@ func TestCopyDataToMetalBuffer(t *testing.T) {
 func TestCommandBufferPooling(t *testing.T) {
 	// Note: We need a command pool to test these functions
 	// For now, test that the functions exist and handle nil gracefully
-	
+
 	// Test GetCommandBufferFromPool with nil (should handle gracefully)
 	_, err := GetCommandBufferFromPool(nil)
 	if err == nil {
@@ -281,7 +283,7 @@ func TestBuildInferenceGraph(t *testing.T) {
 		UseCommandPooling:      false,
 		OptimizeForSingleBatch: true,
 	}
-	
+
 	// Create a test inference engine first
 	engine, err := CreateInferenceEngine(device, config)
 	if err != nil {
@@ -289,7 +291,7 @@ func TestBuildInferenceGraph(t *testing.T) {
 		return
 	}
 	defer DestroyInferenceEngine(engine)
-	
+
 	err = BuildInferenceGraph(
 		engine,
 		[]int{1, 10}, // Input shape

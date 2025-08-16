@@ -1,3 +1,6 @@
+//go:build darwin && cgo
+// +build darwin,cgo
+
 package cgo_bridge
 
 /*
@@ -26,25 +29,25 @@ typedef struct {
     int input_channels;
     int input_height;
     int input_width;
-    
+
     // Convolution layer outputs (calculated or provided)
     int conv1_out_channels;
     int conv1_out_height;
     int conv1_out_width;
-    
+
     int conv2_out_channels;
     int conv2_out_height;
     int conv2_out_width;
-    
+
     int conv3_out_channels;
     int conv3_out_height;
     int conv3_out_width;
-    
+
     // Fully connected layer dimensions
     int fc1_input_size;      // Flattened conv output size
     int fc1_output_size;     // Hidden layer size
     int fc2_output_size;     // Number of classes
-    
+
     // Convolution parameters
     int conv1_kernel_size;
     int conv1_stride;
@@ -138,7 +141,7 @@ int copy_metal_buffer_to_int32_array(uintptr_t buffer, int* data, int num_elemen
 int convert_tensor_type(uintptr_t src_buffer, uintptr_t dst_buffer, int* shape, int num_dims, int src_type, int dst_type, uintptr_t device);
 
 // MEMORY TRANSFER OPTIMIZATION: Direct Metal buffer operations for staging pool
-int copy_buffer_to_buffer_async(uintptr_t src_buffer, uintptr_t dst_buffer, 
+int copy_buffer_to_buffer_async(uintptr_t src_buffer, uintptr_t dst_buffer,
                                 int src_offset, int dst_offset, int size,
                                 uintptr_t command_queue);
 int copy_buffer_to_buffer_sync(uintptr_t src_buffer, uintptr_t dst_buffer,
@@ -170,13 +173,13 @@ typedef struct {
     int input_shape_len;     // Number of valid dimensions
     int output_shape[4];     // Output dimensions
     int output_shape_len;    // Number of valid dimensions
-    
+
     // Layer-specific parameters
     int param_int[8];        // Integer parameters (e.g., kernel_size, stride, padding)
     float param_float[8];    // Float parameters (e.g., dropout_rate)
     int param_int_count;     // Number of valid int parameters
     int param_float_count;   // Number of valid float parameters
-    
+
     // Running statistics for layers like BatchNorm (non-learnable parameters)
     float* running_mean;     // Running mean data
     float* running_var;      // Running variance data
@@ -523,7 +526,7 @@ func SetupMemoryBridgeWithConvert(setupFunc func(
 		}
 		return ConvertTensorType(srcBuffer, dstBuffer, shape, srcType, dstType, device)
 	}
-	
+
 	setupFunc(
 		CopyMetalBufferToFloat32Array,
 		CopyFloat32ArrayToMetalBuffer,
@@ -549,44 +552,44 @@ const (
 // TrainingConfig holds training configuration
 type TrainingConfig struct {
 	LearningRate  float32
-	Beta1         float32         // Adam momentum decay (or RMSProp momentum if > 0)
-	Beta2         float32         // Adam variance decay (unused for RMSProp)
+	Beta1         float32 // Adam momentum decay (or RMSProp momentum if > 0)
+	Beta2         float32 // Adam variance decay (unused for RMSProp)
 	WeightDecay   float32
 	Epsilon       float32
-	Alpha         float32         // RMSProp smoothing constant (typically 0.99)
-	Momentum      float32         // RMSProp momentum (typically 0.0 or 0.9)
-	Centered      bool            // RMSProp centered variant
+	Alpha         float32 // RMSProp smoothing constant (typically 0.99)
+	Momentum      float32 // RMSProp momentum (typically 0.0 or 0.9)
+	Centered      bool    // RMSProp centered variant
 	OptimizerType OptimizerType
-	ProblemType   int             // 0 = Classification, 1 = Regression
-	LossFunction  int             // 0 = CrossEntropy, 1 = SparseCrossEntropy, 2 = MSE, 3 = MAE, 4 = Huber
+	ProblemType   int // 0 = Classification, 1 = Regression
+	LossFunction  int // 0 = CrossEntropy, 1 = SparseCrossEntropy, 2 = MSE, 3 = MAE, 4 = Huber
 }
 
 // ModelConfig holds model architecture configuration for dynamic dimensions
 type ModelConfig struct {
 	// Input configuration
-	BatchSize      int
-	InputChannels  int
-	InputHeight    int
-	InputWidth     int
-	
+	BatchSize     int
+	InputChannels int
+	InputHeight   int
+	InputWidth    int
+
 	// Convolution layer outputs
 	Conv1OutChannels int
 	Conv1OutHeight   int
 	Conv1OutWidth    int
-	
+
 	Conv2OutChannels int
 	Conv2OutHeight   int
 	Conv2OutWidth    int
-	
+
 	Conv3OutChannels int
 	Conv3OutHeight   int
 	Conv3OutWidth    int
-	
+
 	// Fully connected layer dimensions
 	FC1InputSize  int // Flattened conv output size
 	FC1OutputSize int // Hidden layer size
 	FC2OutputSize int // Number of classes
-	
+
 	// Convolution parameters
 	Conv1KernelSize int
 	Conv1Stride     int
@@ -599,24 +602,24 @@ type ModelConfig struct {
 // InferenceConfig holds configuration for inference-only engines
 type InferenceConfig struct {
 	// Model configuration
-	UseDynamicEngine bool              // Use dynamic graph engine
-	BatchNormInferenceMode bool       // Use batch norm in inference mode
-	
+	UseDynamicEngine       bool // Use dynamic graph engine
+	BatchNormInferenceMode bool // Use batch norm in inference mode
+
 	// Input configuration
-	InputShape      []int32           // Input tensor shape
-	InputShapeLen   int32            // Length of input shape array
-	
+	InputShape    []int32 // Input tensor shape
+	InputShapeLen int32   // Length of input shape array
+
 	// Layer specifications for dynamic models
-	LayerSpecs      []LayerSpecC     // Layer specifications
-	LayerSpecsLen   int32           // Number of layer specs
-	
+	LayerSpecs    []LayerSpecC // Layer specifications
+	LayerSpecsLen int32        // Number of layer specs
+
 	// Problem type and loss function (CRITICAL FIX for regression inference)
-	ProblemType     int              // 0 = Classification, 1 = Regression
-	LossFunction    int              // 0 = CrossEntropy, 1 = SparseCrossEntropy, 2 = MSE, 3 = MAE, 4 = Huber
-	
+	ProblemType  int // 0 = Classification, 1 = Regression
+	LossFunction int // 0 = CrossEntropy, 1 = SparseCrossEntropy, 2 = MSE, 3 = MAE, 4 = Huber
+
 	// Performance settings
-	UseCommandPooling bool           // Enable command buffer pooling
-	OptimizeForSingleBatch bool     // Optimize for batch size 1
+	UseCommandPooling      bool // Enable command buffer pooling
+	OptimizeForSingleBatch bool // Optimize for batch size 1
 }
 
 // DeviceType maps to our memory package
@@ -647,51 +650,62 @@ func DestroyMetalDevice(device unsafe.Pointer) {
 // CreateTrainingEngine creates a training engine
 func CreateTrainingEngine(device unsafe.Pointer, config TrainingConfig) (unsafe.Pointer, error) {
 	cConfig := C.training_config_t{
-		learning_rate:  C.float(config.LearningRate),
+		learning_rate: C.float(config.LearningRate),
 		beta1:         C.float(config.Beta1),
 		beta2:         C.float(config.Beta2),
 		weight_decay:  C.float(config.WeightDecay),
 		epsilon:       C.float(config.Epsilon),
 		alpha:         C.float(config.Alpha),
 		momentum:      C.float(config.Momentum),
-		centered:      C.int(func() int { if config.Centered { return 1 } else { return 0 } }()),
+		centered: C.int(func() int {
+			if config.Centered {
+				return 1
+			} else {
+				return 0
+			}
+		}()),
 		optimizer_type: C.int(config.OptimizerType),
 		problem_type:   C.int(config.ProblemType),
 		loss_function:  C.int(config.LossFunction),
 	}
-	
+
 	engine := C.create_training_engine(C.uintptr_t(uintptr(device)), &cConfig)
 	if engine == 0 {
 		return nil, fmt.Errorf("failed to create training engine")
 	}
-	
+
 	return unsafe.Pointer(uintptr(engine)), nil
 }
 
 // CreateTrainingEngineConstantWeights creates a training engine with constant weights to avoid MPSGraph assertion
 func CreateTrainingEngineConstantWeights(device unsafe.Pointer, config TrainingConfig) (unsafe.Pointer, error) {
 	cConfig := C.training_config_t{
-		learning_rate:  C.float(config.LearningRate),
+		learning_rate: C.float(config.LearningRate),
 		beta1:         C.float(config.Beta1),
 		beta2:         C.float(config.Beta2),
 		weight_decay:  C.float(config.WeightDecay),
 		epsilon:       C.float(config.Epsilon),
 		alpha:         C.float(config.Alpha),
 		momentum:      C.float(config.Momentum),
-		centered:      C.int(func() int { if config.Centered { return 1 } else { return 0 } }()),
+		centered: C.int(func() int {
+			if config.Centered {
+				return 1
+			} else {
+				return 0
+			}
+		}()),
 		optimizer_type: C.int(config.OptimizerType),
 		problem_type:   C.int(config.ProblemType),
 		loss_function:  C.int(config.LossFunction),
 	}
-	
+
 	engine := C.create_training_engine_constant_weights(C.uintptr_t(uintptr(device)), &cConfig)
 	if engine == 0 {
 		return nil, fmt.Errorf("failed to create constant weights training engine")
 	}
-	
+
 	return unsafe.Pointer(uintptr(engine)), nil
 }
-
 
 // ExecuteTrainingStep executes a complete training step
 func ExecuteTrainingStep(
@@ -705,7 +719,7 @@ func ExecuteTrainingStep(
 	for i, buf := range weightBuffers {
 		cWeightBuffers[i] = C.uintptr_t(uintptr(buf))
 	}
-	
+
 	var lossOut C.float
 	result := C.execute_training_step(
 		C.uintptr_t(uintptr(engine)),
@@ -715,15 +729,13 @@ func ExecuteTrainingStep(
 		C.int(len(weightBuffers)),
 		&lossOut,
 	)
-	
+
 	if result != 0 {
 		return 0, fmt.Errorf("training step failed with error code: %d", result)
 	}
-	
+
 	return float32(lossOut), nil
 }
-
-
 
 // AllocateMetalBuffer allocates a Metal buffer
 func AllocateMetalBuffer(device unsafe.Pointer, size int, deviceType DeviceType) (unsafe.Pointer, error) {
@@ -732,11 +744,11 @@ func AllocateMetalBuffer(device unsafe.Pointer, size int, deviceType DeviceType)
 		C.int(size),
 		C.int(deviceType),
 	)
-	
+
 	if buffer == 0 {
 		return nil, fmt.Errorf("failed to allocate Metal buffer of size %d", size)
 	}
-	
+
 	return unsafe.Pointer(uintptr(buffer)), nil
 }
 
@@ -760,7 +772,7 @@ func DestroyTrainingEngine(engine unsafe.Pointer) {
 func CreateInferenceEngine(device unsafe.Pointer, config InferenceConfig) (unsafe.Pointer, error) {
 	// For now, use the existing training engine but configure it for inference only
 	// In a full implementation, this would create a dedicated inference engine
-	
+
 	// Convert to training config for compatibility (will be optimized in C++ later)
 	trainingConfig := TrainingConfig{
 		LearningRate:  0.001, // Not used for inference
@@ -772,12 +784,12 @@ func CreateInferenceEngine(device unsafe.Pointer, config InferenceConfig) (unsaf
 		Momentum:      0.0,   // Not used for inference
 		Centered:      false, // Not used for inference
 		OptimizerType: SGD,   // Not used for inference
-		
+
 		// CRITICAL FIX: Set problem type and loss function for correct inference behavior
-		ProblemType:   config.ProblemType,  // Pass through the problem type (0=Classification, 1=Regression)
-		LossFunction:  config.LossFunction, // Pass through the loss function (0=CrossEntropy, 1=SparseCrossEntropy, 2=MSE, etc.)
+		ProblemType:  config.ProblemType,  // Pass through the problem type (0=Classification, 1=Regression)
+		LossFunction: config.LossFunction, // Pass through the loss function (0=CrossEntropy, 1=SparseCrossEntropy, 2=MSE, etc.)
 	}
-	
+
 	if config.UseDynamicEngine {
 		// Create dynamic training engine configured for inference
 		// Convert input shape from int32 to int
@@ -785,7 +797,7 @@ func CreateInferenceEngine(device unsafe.Pointer, config InferenceConfig) (unsaf
 		for i, dim := range config.InputShape {
 			inputShape[i] = int(dim)
 		}
-		
+
 		engine, err := CreateTrainingEngineDynamic(
 			device,
 			trainingConfig,
@@ -817,17 +829,17 @@ func ExecuteInferenceOnly(
 	isDynamic bool,
 	batchNormInferenceMode bool,
 ) (*InferenceResult, error) {
-	// fmt.Printf("DEBUG: ExecuteInferenceOnly called with batchSize=%d, numClasses=%d, numWeights=%d\n", 
+	// fmt.Printf("DEBUG: ExecuteInferenceOnly called with batchSize=%d, numClasses=%d, numWeights=%d\n",
 	// 	batchSize, numClasses, len(weightBuffers))
-	
+
 	// Test debug output
 	C.test_debug_output()
-	
+
 	// Validate inputs
 	if engine == nil || inputBuffer == nil {
 		return nil, fmt.Errorf("engine or input buffer is nil")
 	}
-	
+
 	if batchSize <= 0 || numClasses <= 0 {
 		return nil, fmt.Errorf("invalid batch size (%d) or num classes (%d)", batchSize, numClasses)
 	}
@@ -845,7 +857,7 @@ func ExecuteInferenceOnly(
 		}
 		cWeightBuffers = &cWeights[0]
 	}
-	
+
 	// CRITICAL FIX: Since CreateInferenceEngine actually creates a training engine,
 	// we need to use the training engine's inference function instead of the inference engine's function
 	result := C.execute_inference_dynamic(
@@ -1033,8 +1045,6 @@ func ExecuteAdamStepMPSGraph(
 	return nil
 }
 
-
-
 // ZeroMetalBuffer zeros a Metal buffer (uses CPU for accessible buffers, MPSGraph for GPU-only)
 func ZeroMetalBuffer(device unsafe.Pointer, buffer unsafe.Pointer, size int) error {
 	result := C.zero_metal_buffer(
@@ -1152,13 +1162,13 @@ func ConvertTensorType(srcBuffer, dstBuffer unsafe.Pointer, shape []int, srcType
 	if len(shape) == 0 {
 		return fmt.Errorf("shape cannot be empty")
 	}
-	
+
 	// Convert shape to C array
 	cShape := make([]C.int, len(shape))
 	for i, dim := range shape {
 		cShape[i] = C.int(dim)
 	}
-	
+
 	result := C.convert_tensor_type(
 		C.uintptr_t(uintptr(srcBuffer)),
 		C.uintptr_t(uintptr(dstBuffer)),
@@ -1168,11 +1178,11 @@ func ConvertTensorType(srcBuffer, dstBuffer unsafe.Pointer, shape []int, srcType
 		C.int(dstType),
 		C.uintptr_t(uintptr(device)),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("failed to convert tensor type with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -1219,46 +1229,46 @@ type MemoryStrategy int
 
 const (
 	Minimal      MemoryStrategy = iota // Minimal memory usage
-	BalancedMem                       // Balanced memory vs performance
-	PreAllocated                      // Pre-allocate buffers for maximum performance
+	BalancedMem                        // Balanced memory vs performance
+	PreAllocated                       // Pre-allocate buffers for maximum performance
 )
 
 // DedicatedInferenceConfig holds configuration for the dedicated inference engine
 type DedicatedInferenceConfig struct {
-	PrecisionThreshold   float32           // Float16 conversion threshold
-	MaxBatchSize         int               // Maximum supported batch size
-	OptimizationLevel    OptimizationLevel // Optimization aggressiveness
-	MemoryStrategy       MemoryStrategy    // Memory management approach
-	EnableTelemetry      bool              // Enable performance monitoring
-	CacheCompiledGraphs  bool              // Cache compiled MPSGraph executables
+	PrecisionThreshold  float32           // Float16 conversion threshold
+	MaxBatchSize        int               // Maximum supported batch size
+	OptimizationLevel   OptimizationLevel // Optimization aggressiveness
+	MemoryStrategy      MemoryStrategy    // Memory management approach
+	EnableTelemetry     bool              // Enable performance monitoring
+	CacheCompiledGraphs bool              // Cache compiled MPSGraph executables
 }
 
 // DedicatedInferenceResult contains comprehensive inference results and metadata
 type DedicatedInferenceResult struct {
-	Predictions      []float32 // Output predictions (GPU -> CPU copied)
-	OutputShape      []int     // Shape of output tensor
-	ConfidenceScore  float32   // Maximum confidence/probability
-	PredictedClass   int       // Predicted class index (for classification)
-	InferenceTimeMs  float64   // Time taken for this inference
-	MemoryUsedBytes  uint64    // GPU memory used for this inference
+	Predictions     []float32 // Output predictions (GPU -> CPU copied)
+	OutputShape     []int     // Shape of output tensor
+	ConfidenceScore float32   // Maximum confidence/probability
+	PredictedClass  int       // Predicted class index (for classification)
+	InferenceTimeMs float64   // Time taken for this inference
+	MemoryUsedBytes uint64    // GPU memory used for this inference
 }
 
 // InferenceTelemetry provides performance metrics for the inference engine
 type InferenceTelemetry struct {
-	TotalInferences  uint64  // Total inference calls
-	TotalTimeMs      float64 // Total inference time in milliseconds
-	AvgLatencyMs     float64 // Average inference latency
-	PeakThroughput   float64 // Peak throughput (inferences/second)
-	PeakMemoryUsage  uint64  // Peak GPU memory usage
-	CacheHits        uint64  // Graph compilation cache hits
-	CacheMisses      uint64  // Graph compilation cache misses
+	TotalInferences uint64  // Total inference calls
+	TotalTimeMs     float64 // Total inference time in milliseconds
+	AvgLatencyMs    float64 // Average inference latency
+	PeakThroughput  float64 // Peak throughput (inferences/second)
+	PeakMemoryUsage uint64  // Peak GPU memory usage
+	CacheHits       uint64  // Graph compilation cache hits
+	CacheMisses     uint64  // Graph compilation cache misses
 }
 
 // DedicatedInferenceEngine represents a GPU-resident inference engine optimized for forward pass only
 type DedicatedInferenceEngine struct {
-	engine    unsafe.Pointer           // Pointer to C inference engine
-	config    DedicatedInferenceConfig // Engine configuration
-	isDestroyed bool                   // Track destruction state
+	engine      unsafe.Pointer           // Pointer to C inference engine
+	config      DedicatedInferenceConfig // Engine configuration
+	isDestroyed bool                     // Track destruction state
 }
 
 // ExecuteInference performs forward-only pass and returns predictions
@@ -1271,12 +1281,12 @@ func ExecuteInference(
 	numClasses int,
 	isDynamic bool,
 ) (*InferenceResult, error) {
-	
+
 	// Validate inputs
 	if engine == nil || inputBuffer == nil {
 		return nil, fmt.Errorf("engine or input buffer is nil")
 	}
-	
+
 	if batchSize <= 0 || numClasses <= 0 {
 		return nil, fmt.Errorf("invalid batch size (%d) or num classes (%d)", batchSize, numClasses)
 	}
@@ -1327,7 +1337,7 @@ func ExecuteInference(
 // LayerSpecC represents a C-compatible layer specification
 type LayerSpecC struct {
 	LayerType       int32
-	Name            [64]byte  // Fixed-size array for C compatibility
+	Name            [64]byte // Fixed-size array for C compatibility
 	InputShape      [4]int32
 	InputShapeLen   int32
 	OutputShape     [4]int32
@@ -1337,8 +1347,8 @@ type LayerSpecC struct {
 	ParamIntCount   int32
 	ParamFloatCount int32
 	// Running statistics for layers like BatchNorm (non-learnable parameters)
-	RunningMean     []float32
-	RunningVar      []float32
+	RunningMean      []float32
+	RunningVar       []float32
 	RunningStatsSize int32
 	HasRunningStats  int32 // Boolean flag (0 or 1)
 }
@@ -1353,21 +1363,27 @@ func CreateTrainingEngineDynamic(
 	if len(layerSpecs) == 0 {
 		return nil, fmt.Errorf("no layer specifications provided")
 	}
-	
+
 	if len(inputShape) == 0 {
 		return nil, fmt.Errorf("no input shape provided")
 	}
 
 	// Convert Go training config to C
 	cConfig := C.training_config_t{
-		learning_rate:  C.float(config.LearningRate),
+		learning_rate: C.float(config.LearningRate),
 		beta1:         C.float(config.Beta1),
 		beta2:         C.float(config.Beta2),
 		weight_decay:  C.float(config.WeightDecay),
 		epsilon:       C.float(config.Epsilon),
 		alpha:         C.float(config.Alpha),
 		momentum:      C.float(config.Momentum),
-		centered:      C.int(func() int { if config.Centered { return 1 } else { return 0 } }()),
+		centered: C.int(func() int {
+			if config.Centered {
+				return 1
+			} else {
+				return 0
+			}
+		}()),
 		optimizer_type: C.int(config.OptimizerType),
 		problem_type:   C.int(config.ProblemType),
 		loss_function:  C.int(config.LossFunction),
@@ -1377,11 +1393,11 @@ func CreateTrainingEngineDynamic(
 	cLayerSpecs := make([]C.layer_spec_c_t, len(layerSpecs))
 	for i, spec := range layerSpecs {
 		cLayerSpecs[i] = C.layer_spec_c_t{
-			layer_type:        C.int(spec.LayerType),
-			input_shape_len:   C.int(spec.InputShapeLen),
-			output_shape_len:  C.int(spec.OutputShapeLen),
-			param_int_count:   C.int(spec.ParamIntCount),
-			param_float_count: C.int(spec.ParamFloatCount),
+			layer_type:         C.int(spec.LayerType),
+			input_shape_len:    C.int(spec.InputShapeLen),
+			output_shape_len:   C.int(spec.OutputShapeLen),
+			param_int_count:    C.int(spec.ParamIntCount),
+			param_float_count:  C.int(spec.ParamFloatCount),
 			running_stats_size: C.int(spec.RunningStatsSize),
 			has_running_stats:  C.int(spec.HasRunningStats),
 		}
@@ -1412,18 +1428,18 @@ func CreateTrainingEngineDynamic(
 		for j := 0; j < int(spec.ParamFloatCount) && j < 8; j++ {
 			cLayerSpecs[i].param_float[j] = C.float(spec.ParamFloat[j])
 		}
-		
+
 		// ARCHITECTURAL FIX: Copy running statistics if available
 		if spec.HasRunningStats == 1 && len(spec.RunningMean) > 0 && len(spec.RunningVar) > 0 {
 			// Allocate C arrays for running statistics
 			cLayerSpecs[i].running_mean = (*C.float)(C.calloc(C.size_t(len(spec.RunningMean)), C.sizeof_float))
 			cLayerSpecs[i].running_var = (*C.float)(C.calloc(C.size_t(len(spec.RunningVar)), C.sizeof_float))
-			
+
 			// Copy running mean data
 			for j := 0; j < len(spec.RunningMean); j++ {
 				*(*C.float)(unsafe.Pointer(uintptr(unsafe.Pointer(cLayerSpecs[i].running_mean)) + uintptr(j)*unsafe.Sizeof(C.float(0)))) = C.float(spec.RunningMean[j])
 			}
-			
+
 			// Copy running variance data
 			for j := 0; j < len(spec.RunningVar); j++ {
 				*(*C.float)(unsafe.Pointer(uintptr(unsafe.Pointer(cLayerSpecs[i].running_var)) + uintptr(j)*unsafe.Sizeof(C.float(0)))) = C.float(spec.RunningVar[j])
@@ -1507,10 +1523,10 @@ func ExecuteTrainingStepDynamicWithGradients(
 ) (float32, error) {
 	// Validate input parameters
 	if len(weightBuffers) != len(gradientBuffers) {
-		return 0, fmt.Errorf("weight buffer count (%d) must match gradient buffer count (%d)", 
+		return 0, fmt.Errorf("weight buffer count (%d) must match gradient buffer count (%d)",
 			len(weightBuffers), len(gradientBuffers))
 	}
-	
+
 	// Convert weight buffers to C array
 	var cWeightBuffers *C.uintptr_t
 	if len(weightBuffers) > 0 {
@@ -1520,7 +1536,7 @@ func ExecuteTrainingStepDynamicWithGradients(
 		}
 		cWeightBuffers = &cWeights[0]
 	}
-	
+
 	// Convert gradient buffers to C array
 	var cGradientBuffers *C.uintptr_t
 	if len(gradientBuffers) > 0 {
@@ -1563,10 +1579,10 @@ func ExecuteTrainingStepDynamicWithGradientsPooled(
 ) (float32, error) {
 	// Validate input parameters
 	if len(weightBuffers) != len(gradientBuffers) {
-		return 0, fmt.Errorf("weight buffer count (%d) must match gradient buffer count (%d)", 
+		return 0, fmt.Errorf("weight buffer count (%d) must match gradient buffer count (%d)",
 			len(weightBuffers), len(gradientBuffers))
 	}
-	
+
 	// Convert weight buffers to C array
 	var cWeightBuffers *C.uintptr_t
 	if len(weightBuffers) > 0 {
@@ -1576,7 +1592,7 @@ func ExecuteTrainingStepDynamicWithGradientsPooled(
 		}
 		cWeightBuffers = &cWeights[0]
 	}
-	
+
 	// Convert gradient buffers to C array
 	var cGradientBuffers *C.uintptr_t
 	if len(gradientBuffers) > 0 {
@@ -1621,15 +1637,15 @@ func ExecuteTrainingStepSGDPooled(
 	if engine == nil {
 		return 0, fmt.Errorf("engine cannot be nil")
 	}
-	
+
 	if inputBuffer == nil || labelBuffer == nil {
 		return 0, fmt.Errorf("input and label buffers cannot be nil")
 	}
-	
+
 	if len(weightBuffers) != len(gradientBuffers) {
 		return 0, fmt.Errorf("weight and gradient buffer counts must match")
 	}
-	
+
 	// Convert weight buffers to C array
 	var cWeightBuffers *C.uintptr_t
 	if len(weightBuffers) > 0 {
@@ -1639,7 +1655,7 @@ func ExecuteTrainingStepSGDPooled(
 		}
 		cWeightBuffers = &cWeights[0]
 	}
-	
+
 	// Convert gradient buffers to C array
 	var cGradientBuffers *C.uintptr_t
 	if len(gradientBuffers) > 0 {
@@ -1677,12 +1693,12 @@ func CreateCommandQueue(device unsafe.Pointer) (unsafe.Pointer, error) {
 	if device == nil {
 		return nil, fmt.Errorf("device cannot be nil")
 	}
-	
+
 	commandQueue := C.create_command_queue(C.uintptr_t(uintptr(device)))
 	if commandQueue == 0 {
 		return nil, fmt.Errorf("failed to create command queue")
 	}
-	
+
 	return unsafe.Pointer(uintptr(commandQueue)), nil
 }
 
@@ -1703,12 +1719,12 @@ func CreateCommandBuffer(commandQueue unsafe.Pointer) (unsafe.Pointer, error) {
 	if commandQueue == nil {
 		return nil, fmt.Errorf("command queue cannot be nil")
 	}
-	
+
 	commandBuffer := C.create_command_buffer(C.uintptr_t(uintptr(commandQueue)))
 	if commandBuffer == 0 {
 		return nil, fmt.Errorf("failed to create command buffer")
 	}
-	
+
 	return unsafe.Pointer(uintptr(commandBuffer)), nil
 }
 
@@ -1724,12 +1740,12 @@ func CommitCommandBuffer(commandBuffer unsafe.Pointer) error {
 	if commandBuffer == nil {
 		return fmt.Errorf("command buffer cannot be nil")
 	}
-	
+
 	result := C.commit_command_buffer(C.uintptr_t(uintptr(commandBuffer)))
 	if result != 0 {
 		return fmt.Errorf("failed to commit command buffer with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -1738,12 +1754,12 @@ func WaitCommandBufferCompletion(commandBuffer unsafe.Pointer) error {
 	if commandBuffer == nil {
 		return fmt.Errorf("command buffer cannot be nil")
 	}
-	
+
 	result := C.wait_command_buffer_completion(C.uintptr_t(uintptr(commandBuffer)))
 	if result != 0 {
 		return fmt.Errorf("command buffer completion failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -1759,18 +1775,17 @@ func DrainAutoreleasePool() {
 
 // RESOURCE LEAK FIX: Command buffer pooled training functions
 
-
 // GetCommandBufferFromPool gets a command buffer from the pool (Metal level interface)
 func GetCommandBufferFromPool(commandPool unsafe.Pointer) (unsafe.Pointer, error) {
 	if commandPool == nil {
 		return nil, fmt.Errorf("command pool cannot be nil")
 	}
-	
+
 	result := C.get_command_buffer_from_pool(C.uintptr_t(uintptr(commandPool)))
 	if result == 0 {
 		return nil, fmt.Errorf("failed to get command buffer from pool")
 	}
-	
+
 	return unsafe.Pointer(uintptr(result)), nil
 }
 
@@ -1779,12 +1794,11 @@ func ReturnCommandBufferToPool(commandBuffer unsafe.Pointer) {
 	if commandBuffer == nil {
 		return
 	}
-	
+
 	C.return_command_buffer_to_pool(
 		C.uintptr_t(uintptr(commandBuffer)),
 	)
 }
-
 
 // ExecuteAdamStepMPSGraphPooled performs Adam optimization with pooled command buffers
 // RESOURCE LEAK FIX: Uses command buffer pooling to prevent Metal resource accumulation
@@ -1806,33 +1820,33 @@ func ExecuteAdamStepMPSGraphPooled(
 	if device == nil || commandPool == nil {
 		return fmt.Errorf("device or command pool is nil")
 	}
-	
+
 	numWeights := len(weightBuffers)
-	if len(gradientBuffers) != numWeights || len(momentumBuffers) != numWeights || 
-	   len(varianceBuffers) != numWeights || len(bufferSizes) != numWeights {
+	if len(gradientBuffers) != numWeights || len(momentumBuffers) != numWeights ||
+		len(varianceBuffers) != numWeights || len(bufferSizes) != numWeights {
 		return fmt.Errorf("buffer count mismatch")
 	}
-	
+
 	// Convert to C arrays
 	weightBufPtrs := make([]C.uintptr_t, numWeights)
 	gradBufPtrs := make([]C.uintptr_t, numWeights)
 	momentumBufPtrs := make([]C.uintptr_t, numWeights)
 	varianceBufPtrs := make([]C.uintptr_t, numWeights)
 	bufSizes := make([]C.int, numWeights)
-	
+
 	for i := 0; i < numWeights; i++ {
 		if weightBuffers[i] == nil || gradientBuffers[i] == nil ||
-		   momentumBuffers[i] == nil || varianceBuffers[i] == nil {
+			momentumBuffers[i] == nil || varianceBuffers[i] == nil {
 			return fmt.Errorf("buffer %d is nil", i)
 		}
-		
+
 		weightBufPtrs[i] = C.uintptr_t(uintptr(weightBuffers[i]))
 		gradBufPtrs[i] = C.uintptr_t(uintptr(gradientBuffers[i]))
 		momentumBufPtrs[i] = C.uintptr_t(uintptr(momentumBuffers[i]))
 		varianceBufPtrs[i] = C.uintptr_t(uintptr(varianceBuffers[i]))
 		bufSizes[i] = C.int(bufferSizes[i])
 	}
-	
+
 	result := C.execute_adam_step_mpsgraph_pooled(
 		C.uintptr_t(uintptr(device)),
 		&weightBufPtrs[0],
@@ -1849,11 +1863,11 @@ func ExecuteAdamStepMPSGraphPooled(
 		C.int(stepCount),
 		C.uintptr_t(uintptr(commandPool)),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("pooled Adam step failed with code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -1895,14 +1909,14 @@ func ExecuteRMSPropStepMPSGraph(
 		cGradientBuffers[i] = C.uintptr_t(uintptr(gradientBuffers[i]))
 		cSquaredGradAvgBuffers[i] = C.uintptr_t(uintptr(squaredGradAvgBuffers[i]))
 		cBufferSizes[i] = C.int(bufferSizes[i])
-		
+
 		// Optional buffers
 		if momentum > 0.0 && i < len(momentumBuffers) && momentumBuffers[i] != nil {
 			cMomentumBuffers[i] = C.uintptr_t(uintptr(momentumBuffers[i]))
 		} else {
 			cMomentumBuffers[i] = 0
 		}
-		
+
 		if centered && i < len(gradientAvgBuffers) && gradientAvgBuffers[i] != nil {
 			cGradientAvgBuffers[i] = C.uintptr_t(uintptr(gradientAvgBuffers[i]))
 		} else {
@@ -1988,7 +2002,7 @@ func ExecuteLBFGSStepMPSGraph(
 	// Layout: [hist0_weight0, hist0_weight1, ..., hist1_weight0, hist1_weight1, ...]
 	cSVectorsFlat := make([]C.uintptr_t, historySize*numWeights)
 	cYVectorsFlat := make([]C.uintptr_t, historySize*numWeights)
-	
+
 	for h := 0; h < historySize; h++ {
 		for w := 0; w < numWeights; w++ {
 			idx := h*numWeights + w
@@ -2079,8 +2093,8 @@ func ExecuteAdaGradStepMPSGraph(
 		return fmt.Errorf("device cannot be nil")
 	}
 
-	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights || 
-	   len(squaredGradAvgBuffers) != numWeights || len(bufferSizes) != numWeights {
+	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights ||
+		len(squaredGradAvgBuffers) != numWeights || len(bufferSizes) != numWeights {
 		return fmt.Errorf("buffer count mismatch: weights=%d, gradients=%d, squared_grad_avg=%d, sizes=%d, expected=%d",
 			len(weightBuffers), len(gradientBuffers), len(squaredGradAvgBuffers), len(bufferSizes), numWeights)
 	}
@@ -2133,8 +2147,8 @@ func ExecuteAdaGradStepMPSGraphPooled(
 		return fmt.Errorf("device cannot be nil")
 	}
 
-	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights || 
-	   len(squaredGradAvgBuffers) != numWeights || len(bufferSizes) != numWeights {
+	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights ||
+		len(squaredGradAvgBuffers) != numWeights || len(bufferSizes) != numWeights {
 		return fmt.Errorf("buffer count mismatch: weights=%d, gradients=%d, squared_grad_avg=%d, sizes=%d, expected=%d",
 			len(weightBuffers), len(gradientBuffers), len(squaredGradAvgBuffers), len(bufferSizes), numWeights)
 	}
@@ -2188,9 +2202,9 @@ func ExecuteAdaDeltaStepMPSGraph(
 		return fmt.Errorf("device cannot be nil")
 	}
 
-	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights || 
-	   len(squaredGradAvgBuffers) != numWeights || len(squaredUpdateAvgBuffers) != numWeights || 
-	   len(bufferSizes) != numWeights {
+	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights ||
+		len(squaredGradAvgBuffers) != numWeights || len(squaredUpdateAvgBuffers) != numWeights ||
+		len(bufferSizes) != numWeights {
 		return fmt.Errorf("buffer count mismatch: weights=%d, gradients=%d, squared_grad_avg=%d, squared_update_avg=%d, sizes=%d, expected=%d",
 			len(weightBuffers), len(gradientBuffers), len(squaredGradAvgBuffers), len(squaredUpdateAvgBuffers), len(bufferSizes), numWeights)
 	}
@@ -2247,9 +2261,9 @@ func ExecuteAdaDeltaStepMPSGraphPooled(
 		return fmt.Errorf("device cannot be nil")
 	}
 
-	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights || 
-	   len(squaredGradAvgBuffers) != numWeights || len(squaredUpdateAvgBuffers) != numWeights || 
-	   len(bufferSizes) != numWeights {
+	if len(weightBuffers) != numWeights || len(gradientBuffers) != numWeights ||
+		len(squaredGradAvgBuffers) != numWeights || len(squaredUpdateAvgBuffers) != numWeights ||
+		len(bufferSizes) != numWeights {
 		return fmt.Errorf("buffer count mismatch: weights=%d, gradients=%d, squared_grad_avg=%d, squared_update_avg=%d, sizes=%d, expected=%d",
 			len(weightBuffers), len(gradientBuffers), len(squaredGradAvgBuffers), len(squaredUpdateAvgBuffers), len(bufferSizes), numWeights)
 	}
@@ -2359,42 +2373,42 @@ func CopyTensorBufferSync(srcBuffer, dstBuffer unsafe.Pointer, size int) error {
 	if srcBuffer == nil || dstBuffer == nil {
 		return fmt.Errorf("source or destination buffer is nil")
 	}
-	
+
 	if size <= 0 {
 		return fmt.Errorf("invalid copy size: %d", size)
 	}
-	
+
 	// Use the synchronous buffer copy using existing C bridge function
 	// This is efficient and reuses the existing blit encoder implementation
 	result := C.copy_buffer_to_buffer_sync(
 		C.uintptr_t(uintptr(srcBuffer)),
 		C.uintptr_t(uintptr(dstBuffer)),
 		C.int(0),    // Source offset
-		C.int(0),    // Destination offset  
+		C.int(0),    // Destination offset
 		C.int(size), // Copy size
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("tensor buffer copy failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
 // MEMORY TRANSFER OPTIMIZATION: Go wrapper functions for direct Metal buffer operations
 
 // CopyBufferToBufferAsync performs asynchronous buffer-to-buffer copy using Metal blit encoder
-func CopyBufferToBufferAsync(srcBuffer, dstBuffer unsafe.Pointer, 
-                            srcOffset, dstOffset, size int, 
-                            commandQueue unsafe.Pointer) error {
+func CopyBufferToBufferAsync(srcBuffer, dstBuffer unsafe.Pointer,
+	srcOffset, dstOffset, size int,
+	commandQueue unsafe.Pointer) error {
 	if srcBuffer == nil || dstBuffer == nil || commandQueue == nil {
 		return fmt.Errorf("invalid buffer or command queue pointers")
 	}
-	
+
 	if size <= 0 || srcOffset < 0 || dstOffset < 0 {
 		return fmt.Errorf("invalid size or offset parameters")
 	}
-	
+
 	result := C.copy_buffer_to_buffer_async(
 		C.uintptr_t(uintptr(srcBuffer)),
 		C.uintptr_t(uintptr(dstBuffer)),
@@ -2403,11 +2417,11 @@ func CopyBufferToBufferAsync(srcBuffer, dstBuffer unsafe.Pointer,
 		C.int(size),
 		C.uintptr_t(uintptr(commandQueue)),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("buffer copy failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -2416,36 +2430,36 @@ func CopyDataToStagingBuffer(stagingBuffer unsafe.Pointer, data []byte) error {
 	if stagingBuffer == nil {
 		return fmt.Errorf("staging buffer is nil")
 	}
-	
+
 	if len(data) == 0 {
 		return fmt.Errorf("data is empty")
 	}
-	
+
 	result := C.copy_data_to_staging_buffer(
 		C.uintptr_t(uintptr(stagingBuffer)),
 		unsafe.Pointer(&data[0]),
 		C.int(len(data)),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("data copy to staging buffer failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
 // CopyStagingToGPUBufferAsync copies from staging buffer to GPU buffer asynchronously
 func CopyStagingToGPUBufferAsync(stagingBuffer, gpuBuffer unsafe.Pointer,
-                                stagingOffset, gpuOffset, size int,
-                                commandQueue unsafe.Pointer) error {
+	stagingOffset, gpuOffset, size int,
+	commandQueue unsafe.Pointer) error {
 	if stagingBuffer == nil || gpuBuffer == nil || commandQueue == nil {
 		return fmt.Errorf("invalid buffer or command queue pointers")
 	}
-	
+
 	if size <= 0 || stagingOffset < 0 || gpuOffset < 0 {
 		return fmt.Errorf("invalid size or offset parameters")
 	}
-	
+
 	result := C.copy_staging_to_gpu_buffer_async(
 		C.uintptr_t(uintptr(stagingBuffer)),
 		C.uintptr_t(uintptr(gpuBuffer)),
@@ -2454,11 +2468,11 @@ func CopyStagingToGPUBufferAsync(stagingBuffer, gpuBuffer unsafe.Pointer,
 		C.int(size),
 		C.uintptr_t(uintptr(commandQueue)),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("staging to GPU copy failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -2467,15 +2481,15 @@ func WaitForBufferCopyCompletion(commandQueue unsafe.Pointer) error {
 	if commandQueue == nil {
 		return fmt.Errorf("command queue is nil")
 	}
-	
+
 	result := C.wait_for_buffer_copy_completion(
 		C.uintptr_t(uintptr(commandQueue)),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("wait for buffer copy completion failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -2491,31 +2505,31 @@ func NewDedicatedInferenceEngine(
 	if device == nil {
 		return nil, fmt.Errorf("device cannot be nil")
 	}
-	
+
 	if len(layers) == 0 {
 		return nil, fmt.Errorf("at least one layer must be provided")
 	}
-	
+
 	// Convert Go config to C config
 	cConfig := C.inference_config_t{
-		precision_threshold:    C.float(config.PrecisionThreshold),
+		precision_threshold:   C.float(config.PrecisionThreshold),
 		max_batch_size:        C.int(config.MaxBatchSize),
 		optimization_level:    C.int(config.OptimizationLevel),
 		memory_strategy:       C.int(config.MemoryStrategy),
 		enable_telemetry:      boolToInt(config.EnableTelemetry),
 		cache_compiled_graphs: boolToInt(config.CacheCompiledGraphs),
 	}
-	
+
 	// Convert Go layers to C layer specifications
 	cLayers := make([]C.layer_spec_c_t, len(layers))
 	for i, layer := range layers {
 		cLayers[i] = convertLayerSpecToC(layer)
 	}
-	
+
 	// Prepare parameters for C interface - copy data to C-allocated memory to avoid CGO pointer issues
 	cParameters := make([]*C.float, len(parameters))
 	cParameterSizes := make([]C.int, len(parameters))
-	
+
 	for i, param := range parameters {
 		if len(param) > 0 {
 			// Allocate C memory and copy data
@@ -2523,20 +2537,20 @@ func NewDedicatedInferenceEngine(
 			if cParam == nil {
 				return nil, fmt.Errorf("failed to allocate C memory for parameter %d", i)
 			}
-			
+
 			// Copy Go slice data to C memory
 			paramSlice := (*[1 << 30]C.float)(unsafe.Pointer(cParam))[:len(param):len(param)]
 			for j, val := range param {
 				paramSlice[j] = C.float(val)
 			}
-			
+
 			cParameters[i] = cParam
 			cParameterSizes[i] = C.int(len(param))
 		}
 	}
-	
+
 	// Note: We need to free this memory after the C call, but the engine takes ownership
-	
+
 	// Create dedicated inference engine
 	enginePtr := C.create_inference_engine_optimized(
 		C.uintptr_t(uintptr(device)),
@@ -2547,11 +2561,11 @@ func NewDedicatedInferenceEngine(
 		&cParameterSizes[0],
 		C.int(len(parameters)),
 	)
-	
+
 	if enginePtr == 0 {
 		return nil, fmt.Errorf("failed to create dedicated inference engine")
 	}
-	
+
 	return &DedicatedInferenceEngine{
 		engine:      unsafe.Pointer(uintptr(enginePtr)),
 		config:      config,
@@ -2569,30 +2583,30 @@ func (e *DedicatedInferenceEngine) InferBatch(
 	if e.isDestroyed {
 		return nil, fmt.Errorf("inference engine has been destroyed")
 	}
-	
+
 	if len(inputData) == 0 {
 		return nil, fmt.Errorf("input data cannot be empty")
 	}
-	
+
 	if batchSize <= 0 || batchSize > e.config.MaxBatchSize {
 		return nil, fmt.Errorf("batch size %d must be between 1 and %d", batchSize, e.config.MaxBatchSize)
 	}
-	
+
 	// Prepare input shape for C interface
 	cInputShape := make([]C.int, len(inputShape))
 	for i, dim := range inputShape {
 		cInputShape[i] = C.int(dim)
 	}
-	
+
 	// Allocate output buffers
 	maxOutputSize := batchSize * 1000 // Reasonable default, will be adjusted by C function
 	outputData := make([]float32, maxOutputSize)
 	outputShape := make([]C.int, 4) // Max 4 dimensions
 	outputShapeLen := C.int(0)
-	
+
 	// Prepare result structure for C interface
 	var cResult C.inference_result_t
-	
+
 	// Execute batch inference with single CGO call
 	fmt.Printf("DEBUG: About to call C.execute_inference_batch_optimized\n")
 	result := C.execute_inference_batch_optimized(
@@ -2606,23 +2620,23 @@ func (e *DedicatedInferenceEngine) InferBatch(
 		C.int(batchSize),
 		&cResult,
 	)
-	
+
 	if result != 0 {
 		return nil, fmt.Errorf("batch inference failed with error code: %d", result)
 	}
-	
+
 	// Convert C result to Go result
 	goOutputShape := make([]int, int(outputShapeLen))
 	for i := 0; i < int(outputShapeLen); i++ {
 		goOutputShape[i] = int(outputShape[i])
 	}
-	
+
 	// Calculate actual output size
 	actualOutputSize := 1
 	for _, dim := range goOutputShape {
 		actualOutputSize *= dim
 	}
-	
+
 	return &DedicatedInferenceResult{
 		Predictions:     outputData[:actualOutputSize],
 		OutputShape:     goOutputShape,
@@ -2647,16 +2661,16 @@ func (e *DedicatedInferenceEngine) PreallocateBuffers(maxBatchSize int) error {
 	if e.isDestroyed {
 		return fmt.Errorf("inference engine has been destroyed")
 	}
-	
+
 	result := C.preallocate_inference_buffers(
 		C.uintptr_t(uintptr(e.engine)),
 		C.int(maxBatchSize),
 	)
-	
+
 	if result != 0 {
 		return fmt.Errorf("buffer preallocation failed with error code: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -2665,13 +2679,13 @@ func (e *DedicatedInferenceEngine) GetTelemetry() (*InferenceTelemetry, error) {
 	if e.isDestroyed {
 		return nil, fmt.Errorf("inference engine has been destroyed")
 	}
-	
+
 	var cTelemetry C.inference_telemetry_t
 	C.get_inference_telemetry(
 		C.uintptr_t(uintptr(e.engine)),
 		&cTelemetry,
 	)
-	
+
 	return &InferenceTelemetry{
 		TotalInferences: uint64(cTelemetry.total_inferences),
 		TotalTimeMs:     float64(cTelemetry.total_time_ms),
@@ -2688,7 +2702,7 @@ func (e *DedicatedInferenceEngine) ResetTelemetry() error {
 	if e.isDestroyed {
 		return fmt.Errorf("inference engine has been destroyed")
 	}
-	
+
 	C.reset_inference_telemetry(C.uintptr_t(uintptr(e.engine)))
 	return nil
 }
@@ -2698,21 +2712,21 @@ func (e *DedicatedInferenceEngine) Destroy() error {
 	if e.isDestroyed {
 		return nil // Already destroyed
 	}
-	
+
 	C.destroy_inference_engine_optimized(C.uintptr_t(uintptr(e.engine)))
 	e.isDestroyed = true
 	e.engine = nil
-	
+
 	return nil
 }
 
 // Helper function to convert Go LayerSpecC to C layer_spec_c_t
 func convertLayerSpecToC(layer LayerSpecC) C.layer_spec_c_t {
 	var cLayer C.layer_spec_c_t
-	
+
 	// Basic layer information
 	cLayer.layer_type = C.int(layer.LayerType)
-	
+
 	// Copy layer name (truncate if necessary to fit buffer)
 	nameBytes := layer.Name[:]
 	nameLen := len(nameBytes)
@@ -2720,31 +2734,31 @@ func convertLayerSpecToC(layer LayerSpecC) C.layer_spec_c_t {
 		nameLen = 63
 	}
 	copy((*[64]C.char)(unsafe.Pointer(&cLayer.name[0]))[:nameLen], (*[64]C.char)(unsafe.Pointer(&nameBytes[0]))[:nameLen])
-	
+
 	// Input shape
 	for i := 0; i < len(layer.InputShape) && i < 4; i++ {
 		cLayer.input_shape[i] = C.int(layer.InputShape[i])
 	}
 	cLayer.input_shape_len = C.int(layer.InputShapeLen)
-	
+
 	// Output shape
 	for i := 0; i < len(layer.OutputShape) && i < 4; i++ {
 		cLayer.output_shape[i] = C.int(layer.OutputShape[i])
 	}
 	cLayer.output_shape_len = C.int(layer.OutputShapeLen)
-	
+
 	// Integer parameters
 	for i := 0; i < len(layer.ParamInt) && i < 8; i++ {
 		cLayer.param_int[i] = C.int(layer.ParamInt[i])
 	}
 	cLayer.param_int_count = C.int(len(layer.ParamInt))
-	
+
 	// Float parameters
 	for i := 0; i < len(layer.ParamFloat) && i < 8; i++ {
 		cLayer.param_float[i] = C.float(layer.ParamFloat[i])
 	}
 	cLayer.param_float_count = C.int(len(layer.ParamFloat))
-	
+
 	// Running statistics (for BatchNorm layers) - handle CGO pointer issues
 	if len(layer.RunningMean) > 0 {
 		// Allocate C memory for running mean
@@ -2768,7 +2782,7 @@ func convertLayerSpecToC(layer LayerSpecC) C.layer_spec_c_t {
 		cLayer.running_stats_size = 0
 		cLayer.has_running_stats = 0
 	}
-	
+
 	if len(layer.RunningVar) > 0 {
 		// Allocate C memory for running variance
 		cRunningVar := (*C.float)(C.malloc(C.size_t(len(layer.RunningVar) * 4)))
@@ -2785,7 +2799,7 @@ func convertLayerSpecToC(layer LayerSpecC) C.layer_spec_c_t {
 	} else {
 		cLayer.running_var = nil
 	}
-	
+
 	return cLayer
 }
 

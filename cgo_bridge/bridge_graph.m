@@ -1,3 +1,6 @@
+//go:build darwin && cgo
+// +build darwin,cgo
+
 #import "bridge_graph.h"
 #import "bridge_optimizer.h"
 
@@ -284,6 +287,26 @@ BOOL buildDynamicGraphFromLayers(training_engine_t* engine,
                                                                        secondaryTensor:sigmoidTensor
                                                                                   name:[NSString stringWithFormat:@"swish_%d", layerIdx]];
                     }
+                    break;
+
+                case 12: // MultiHeadAttention
+                    // Placeholder: Multi-head attention not implemented yet
+                    NSLog(@"⚠️ MultiHeadAttention layer %d not implemented", layerIdx);
+                    break;
+
+                case 13: // LayerNorm
+                    // Placeholder: Layer normalization not implemented yet
+                    NSLog(@"⚠️ LayerNorm layer %d not implemented", layerIdx);
+                    break;
+
+                case 14: // PositionalEncoding
+                    // Placeholder: Positional encoding not implemented yet
+                    NSLog(@"⚠️ PositionalEncoding layer %d not implemented", layerIdx);
+                    break;
+
+                case 15: // Residual block
+                    // Placeholder: Residual blocks not implemented yet
+                    NSLog(@"⚠️ Residual block %d not implemented", layerIdx);
                     break;
                     
                 case 99: // Identity layer (corrupted BatchNorm converted to pass-through)

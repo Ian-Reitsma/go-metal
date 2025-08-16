@@ -23,6 +23,10 @@ const (
 	Sigmoid
 	Tanh
 	Swish
+	MultiHeadAttention
+	LayerNorm
+	PositionalEncoding
+	Residual
 )
 
 func (lt LayerType) String() string {
@@ -51,6 +55,14 @@ func (lt LayerType) String() string {
 		return "Tanh"
 	case Swish:
 		return "Swish"
+	case MultiHeadAttention:
+		return "MultiHeadAttention"
+	case LayerNorm:
+		return "LayerNorm"
+	case PositionalEncoding:
+		return "PositionalEncoding"
+	case Residual:
+		return "Residual"
 	default:
 		return "Unknown"
 	}
@@ -217,11 +229,11 @@ func (lf *LayerFactory) CreateBatchNormSpec(numFeatures int, eps float32, moment
 		Name: name,
 		Parameters: map[string]interface{}{
 			"num_features":        numFeatures,
-			"eps":                eps,
-			"momentum":           momentum,
-			"affine":             affine,
+			"eps":                 eps,
+			"momentum":            momentum,
+			"affine":              affine,
 			"track_running_stats": true, // Always track for training
-			"training":           true,  // Default to training mode
+			"training":            true, // Default to training mode
 		},
 	}
 }
@@ -332,17 +344,17 @@ func (mb *ModelBuilder) AddBatchNorm(numFeatures int, eps float32, momentum floa
 		mb.err = fmt.Errorf("BatchNorm num_features must be positive, got: %d", numFeatures)
 		return mb
 	}
-	
+
 	layer := LayerSpec{
 		Type: BatchNorm,
 		Name: name,
 		Parameters: map[string]interface{}{
 			"num_features":        numFeatures,
-			"eps":                eps,
-			"momentum":           momentum,
-			"affine":             affine,
+			"eps":                 eps,
+			"momentum":            momentum,
+			"affine":              affine,
 			"track_running_stats": true, // Always track for training, controlled by trainer mode
-			"training":           true,  // Default to training mode, controlled by trainer
+			"training":            true, // Default to training mode, controlled by trainer
 		},
 	}
 	return mb.AddLayer(layer)
@@ -413,7 +425,7 @@ func (mb *ModelBuilder) Compile() (*ModelSpec, error) {
 	if mb.err != nil {
 		return nil, mb.err
 	}
-	
+
 	if len(mb.layers) == 0 {
 		return nil, fmt.Errorf("cannot compile empty model")
 	}
@@ -474,6 +486,14 @@ func (mb *ModelBuilder) computeLayerInfo(layer *LayerSpec, inputShape []int) ([]
 		return mb.computeConv2DInfo(layer, inputShape)
 	case BatchNorm:
 		return mb.computeBatchNormInfo(layer, inputShape)
+	case MultiHeadAttention:
+		return mb.computeMultiHeadAttentionInfo(layer, inputShape)
+	case LayerNorm:
+		return mb.computeLayerNormInfo(layer, inputShape)
+	case PositionalEncoding:
+		return mb.computePositionalEncodingInfo(layer, inputShape)
+	case Residual:
+		return mb.computeResidualInfo(layer, inputShape)
 	case ReLU, Softmax, Dropout, LeakyReLU, ELU, Sigmoid, Tanh, Swish:
 		return mb.computeActivationInfo(layer, inputShape)
 	default:
@@ -624,7 +644,7 @@ func (mb *ModelBuilder) computeBatchNormInfo(layer *LayerSpec, inputShape []int)
 	// UNIVERSAL FIX: Handle corrupted BatchNorm parameters
 	// Validate and fix num_features for universal model compatibility
 	expectedFeatures := inputShape[1]
-	
+
 	// If both numFeatures and expectedFeatures are invalid, try to infer from other dimensions
 	if numFeatures <= 0 && expectedFeatures <= 0 {
 		// Look for valid channel dimension in 4D inputs (common case: [batch, 0, height, width])
@@ -649,30 +669,30 @@ func (mb *ModelBuilder) computeBatchNormInfo(layer *LayerSpec, inputShape []int)
 				}
 			}
 		}
-		
+
 		// If still invalid, create identity layer (no parameters)
 		if numFeatures <= 0 {
 			// Return identity layer - no parameters, output = input
 			return outputShape, [][]int{}, 0, nil
 		}
 	}
-	
+
 	// If numFeatures is valid but expectedFeatures is not, use numFeatures
 	if numFeatures > 0 && expectedFeatures <= 0 {
 		outputShape[1] = numFeatures
 		expectedFeatures = numFeatures
 	}
-	
+
 	// If expectedFeatures is valid but numFeatures is not, use expectedFeatures
 	if expectedFeatures > 0 && numFeatures <= 0 {
 		numFeatures = expectedFeatures
 	}
-	
+
 	// Final validation with corrected values
 	if numFeatures != expectedFeatures {
 		return nil, nil, 0, fmt.Errorf("num_features (%d) doesn't match input feature dimension (%d)", numFeatures, expectedFeatures)
 	}
-	
+
 	// Additional safety check
 	if numFeatures <= 0 {
 		return nil, nil, 0, fmt.Errorf("invalid num_features (%d) - must be positive", numFeatures)
@@ -686,7 +706,7 @@ func (mb *ModelBuilder) computeBatchNormInfo(layer *LayerSpec, inputShape []int)
 		// Both have shape [num_features]
 		paramShapes = append(paramShapes, []int{numFeatures}) // gamma (scale)
 		paramShapes = append(paramShapes, []int{numFeatures}) // beta (shift)
-		paramCount = int64(numFeatures * 2) // gamma + beta
+		paramCount = int64(numFeatures * 2)                   // gamma + beta
 	}
 
 	// Note: running_mean and running_var are not trainable parameters
@@ -824,7 +844,7 @@ func (ms *ModelSpec) validateLayerForDynamicEngine(layer LayerSpec, index int) e
 		if _, ok := layer.Parameters["output_size"]; !ok {
 			return fmt.Errorf("Dense layer missing output_size parameter")
 		}
-		
+
 	case Conv2D:
 		// Conv2D layers need kernel_size, input_channels, output_channels
 		requiredParams := []string{"kernel_size", "input_channels", "output_channels"}
@@ -833,32 +853,32 @@ func (ms *ModelSpec) validateLayerForDynamicEngine(layer LayerSpec, index int) e
 				return fmt.Errorf("Conv2D layer missing %s parameter", param)
 			}
 		}
-		
+
 	case ReLU, Softmax, LeakyReLU, ELU, Sigmoid, Tanh, Swish:
 		// Activation layers don't require specific parameters
-		
+
 	case MaxPool2D:
 		// MaxPool2D needs pool_size
 		if _, ok := layer.Parameters["pool_size"]; !ok {
 			return fmt.Errorf("MaxPool2D layer missing pool_size parameter")
 		}
-		
+
 	case BatchNorm:
 		// BatchNorm needs num_features
 		if _, ok := layer.Parameters["num_features"]; !ok {
 			return fmt.Errorf("BatchNorm layer missing num_features parameter")
 		}
-		
+
 	case Dropout:
 		// Dropout needs rate parameter
 		if _, ok := layer.Parameters["rate"]; !ok {
 			return fmt.Errorf("Dropout layer missing rate parameter")
 		}
-		
+
 	default:
 		return fmt.Errorf("unsupported layer type: %v", layer.Type)
 	}
-	
+
 	return nil
 }
 
@@ -877,21 +897,21 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 
 	// Convert layers to inference-optimized specifications
 	specs := make([]DynamicLayerSpec, len(ms.Layers))
-	
+
 	for i, layer := range ms.Layers {
 		spec := DynamicLayerSpec{
-			LayerType:       int32(layer.Type),
-			InputShape:      convertIntSliceToInt32Array(layer.InputShape),
-			InputShapeLen:   int32(len(layer.InputShape)),
-			OutputShape:     convertIntSliceToInt32Array(layer.OutputShape),
-			OutputShapeLen:  int32(len(layer.OutputShape)),
+			LayerType:      int32(layer.Type),
+			InputShape:     convertIntSliceToInt32Array(layer.InputShape),
+			InputShapeLen:  int32(len(layer.InputShape)),
+			OutputShape:    convertIntSliceToInt32Array(layer.OutputShape),
+			OutputShapeLen: int32(len(layer.OutputShape)),
 		}
-		
+
 		// Copy layer name
 		nameBytes := [64]byte{}
 		copy(nameBytes[:], []byte(layer.Name))
 		spec.NameBytes = nameBytes
-		
+
 		// Copy parameters for inference
 		if layer.Parameters != nil {
 			// Convert layer-specific parameters
@@ -913,7 +933,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					}
 					spec.ParamIntCount++
 				}
-				
+
 			case Conv2D:
 				// JSON numbers are often decoded as float64, so try both int and float64
 				// Check for input_channels/in_channels
@@ -930,7 +950,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamInt[0] = int32(inChannelsFloat)
 					spec.ParamIntCount++
 				}
-				
+
 				// Check for output_channels/out_channels
 				if outChannels, ok := layer.Parameters["output_channels"].(int); ok {
 					spec.ParamInt[1] = int32(outChannels)
@@ -945,7 +965,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamInt[1] = int32(outChannelsFloat)
 					spec.ParamIntCount++
 				}
-				
+
 				if kernelSize, ok := layer.Parameters["kernel_size"].(int); ok {
 					spec.ParamInt[2] = int32(kernelSize)
 					spec.ParamIntCount++
@@ -953,7 +973,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamInt[2] = int32(kernelSizeFloat)
 					spec.ParamIntCount++
 				}
-				
+
 				if stride, ok := layer.Parameters["stride"].(int); ok {
 					spec.ParamInt[3] = int32(stride)
 					spec.ParamIntCount++
@@ -961,7 +981,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamInt[3] = int32(strideFloat)
 					spec.ParamIntCount++
 				}
-				
+
 				if padding, ok := layer.Parameters["padding"].(int); ok {
 					spec.ParamInt[4] = int32(padding)
 					spec.ParamIntCount++
@@ -969,7 +989,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamInt[4] = int32(paddingFloat)
 					spec.ParamIntCount++
 				}
-				
+
 				// Handle use_bias
 				if useBias, ok := layer.Parameters["use_bias"].(bool); ok {
 					if useBias {
@@ -979,7 +999,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					}
 					spec.ParamIntCount++
 				}
-			
+
 			case BatchNorm:
 				// Handle num_features
 				if numFeatures, ok := layer.Parameters["num_features"].(int); ok {
@@ -989,7 +1009,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamInt[0] = int32(numFeaturesFloat)
 					spec.ParamIntCount++
 				}
-				
+
 				// Handle eps (epsilon) - check both float32 and float64
 				if eps, ok := layer.Parameters["eps"].(float32); ok {
 					spec.ParamFloat[0] = eps
@@ -1004,7 +1024,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamFloat[0] = float32(eps)
 					spec.ParamFloatCount++
 				}
-				
+
 				// Handle momentum - check both float32 and float64
 				if momentum, ok := layer.Parameters["momentum"].(float32); ok {
 					spec.ParamFloat[1] = momentum
@@ -1013,7 +1033,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamFloat[1] = float32(momentum)
 					spec.ParamFloatCount++
 				}
-				
+
 				// Handle affine flag
 				if affine, ok := layer.Parameters["affine"].(bool); ok {
 					if affine {
@@ -1023,7 +1043,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					}
 					spec.ParamIntCount++
 				}
-				
+
 				// Handle track_running_stats flag
 				if trackRunningStats, ok := layer.Parameters["track_running_stats"].(bool); ok {
 					if trackRunningStats {
@@ -1033,11 +1053,11 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					}
 					spec.ParamIntCount++
 				}
-				
+
 				// For inference, set training=false regardless of stored value
 				spec.ParamInt[3] = 0 // training = false for inference
 				spec.ParamIntCount++
-				
+
 				// ARCHITECTURAL FIX: Copy running statistics for inference (mean=0, var=1 → actual values)
 				// This resolves the hardcoded normalization limitation
 				if layer.RunningStatistics != nil {
@@ -1053,7 +1073,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 						spec.HasRunningStats = true
 					}
 				}
-				
+
 				// If no running statistics are available, initialize with proper defaults
 				// Use num_features to determine size
 				if !spec.HasRunningStats && spec.ParamIntCount > 0 {
@@ -1069,7 +1089,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 						spec.HasRunningStats = true
 					}
 				}
-				
+
 			case LeakyReLU:
 				if negativeSlope, ok := layer.Parameters["negative_slope"].(float64); ok {
 					spec.ParamFloat[0] = float32(negativeSlope)
@@ -1079,7 +1099,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamFloat[0] = 0.01
 					spec.ParamFloatCount++
 				}
-				
+
 			case ELU:
 				if alpha, ok := layer.Parameters["alpha"].(float64); ok {
 					spec.ParamFloat[0] = float32(alpha)
@@ -1089,7 +1109,7 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 					spec.ParamFloat[0] = 1.0
 					spec.ParamFloatCount++
 				}
-				
+
 			case Dropout:
 				if dropRate, ok := layer.Parameters["drop_rate"].(float64); ok {
 					spec.ParamFloat[0] = float32(dropRate)
@@ -1100,10 +1120,10 @@ func (ms *ModelSpec) ConvertToInferenceLayerSpecs() ([]DynamicLayerSpec, error) 
 				spec.ParamFloatCount = 1
 			}
 		}
-		
+
 		specs[i] = spec
 	}
-	
+
 	return specs, nil
 }
 
@@ -1132,18 +1152,18 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 	if !ms.Compiled {
 		return nil, fmt.Errorf("model must be compiled before serialization")
 	}
-	
+
 	// Convert input and output shapes
 	inputShape := make([]int32, len(ms.InputShape))
 	for i, dim := range ms.InputShape {
 		inputShape[i] = int32(dim)
 	}
-	
+
 	outputShape := make([]int32, len(ms.OutputShape))
 	for i, dim := range ms.OutputShape {
 		outputShape[i] = int32(dim)
 	}
-	
+
 	// Convert layers
 	layers := make([]LayerSpecC, len(ms.Layers))
 	for i, layer := range ms.Layers {
@@ -1151,7 +1171,7 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 			LayerType: int32(layer.Type),
 			Name:      layer.Name,
 		}
-		
+
 		// Convert input shape
 		if len(layer.InputShape) > 0 {
 			cLayer.InputShape = make([]int32, len(layer.InputShape))
@@ -1159,7 +1179,7 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 				cLayer.InputShape[j] = int32(dim)
 			}
 		}
-		
+
 		// Convert output shape
 		if len(layer.OutputShape) > 0 {
 			cLayer.OutputShape = make([]int32, len(layer.OutputShape))
@@ -1167,7 +1187,7 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 				cLayer.OutputShape[j] = int32(dim)
 			}
 		}
-		
+
 		// Convert layer-specific parameters based on type
 		switch layer.Type {
 		case Conv2D:
@@ -1184,7 +1204,7 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 			} else {
 				cLayer.ParamInt = append(cLayer.ParamInt, 0)
 			}
-			
+
 		case Dense:
 			// Dense parameters: input_size, output_size, use_bias
 			cLayer.ParamInt = []int32{
@@ -1196,48 +1216,48 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 			} else {
 				cLayer.ParamInt = append(cLayer.ParamInt, 0)
 			}
-			
+
 		case Softmax:
 			// Softmax parameters: axis
 			cLayer.ParamInt = []int32{
 				int32(getIntParam(layer.Parameters, "axis", -1)),
 			}
-			
+
 		case ReLU:
 			// ReLU has no parameters
 			break
-			
+
 		case Sigmoid:
 			// Sigmoid has no parameters
 			break
-			
+
 		case Tanh:
 			// Tanh has no parameters
 			break
-			
+
 		case Swish:
 			// Swish has no parameters
 			break
-			
+
 		case LeakyReLU:
 			// Leaky ReLU parameters: negative_slope
 			negativeSlope := getFloatParam(layer.Parameters, "negative_slope", 0.01)
 			cLayer.ParamFloat = []float32{negativeSlope}
-			
+
 		case ELU:
 			// ELU parameters: alpha
 			alpha := getFloatParam(layer.Parameters, "alpha", 1.0)
 			cLayer.ParamFloat = []float32{alpha}
-			
+
 		case Dropout:
 			// Dropout parameters: rate, training
 			rate := getFloatParam(layer.Parameters, "rate", 0.5)
 			// CRITICAL FIX: For inference, always set training=false (disables dropout)
 			training := false // Force inference mode - dropout disabled
-			
+
 			cLayer.ParamFloat = []float32{rate}
 			cLayer.ParamInt = []int32{boolToInt32(training)}
-			
+
 		case BatchNorm:
 			// BatchNorm parameters: [eps, momentum] in floats, [num_features, affine, track_running_stats, training] in ints
 			numFeatures := getIntParam(layer.Parameters, "num_features", 0)
@@ -1247,17 +1267,17 @@ func (ms *ModelSpec) SerializeForCGO() (*ModelSpecC, error) {
 			trackRunningStats := getBoolParam(layer.Parameters, "track_running_stats", true)
 			// CRITICAL FIX: For inference, always set training=false regardless of stored value
 			training := false // Force inference mode
-			
+
 			cLayer.ParamFloat = []float32{eps, momentum}
 			cLayer.ParamInt = []int32{int32(numFeatures), boolToInt32(affine), boolToInt32(trackRunningStats), boolToInt32(training)}
-			
+
 		default:
 			return nil, fmt.Errorf("unsupported layer type for serialization: %s", layer.Type.String())
 		}
-		
+
 		layers[i] = cLayer
 	}
-	
+
 	return &ModelSpecC{
 		Layers:      layers,
 		InputShape:  inputShape,
@@ -1353,29 +1373,29 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 			spec.LayerType = 0 // Dense = 0 in C
 			// Debug output disabled
 			// fmt.Printf("0 (Dense)\n")
-			
+
 			inputSize := getIntParam(layer.Parameters, "input_size", 0)
 			outputSize := getIntParam(layer.Parameters, "output_size", 0)
 			useBias := getBoolParam(layer.Parameters, "use_bias", true)
-			
+
 			spec.ParamInt[0] = int32(inputSize)
 			spec.ParamInt[1] = int32(outputSize)
 			spec.ParamInt[2] = boolToInt32(useBias)
 			spec.ParamIntCount = 3
-			
+
 			// Update current shape for next layer
 			currentShape = []int{currentShape[0], outputSize}
 
 		case Conv2D:
 			spec.LayerType = 1 // Conv2D = 1 in C
-			
+
 			inputChannels := getIntParam(layer.Parameters, "input_channels", 0)
 			outputChannels := getIntParam(layer.Parameters, "output_channels", 0)
 			kernelSize := getIntParam(layer.Parameters, "kernel_size", 3)
 			stride := getIntParam(layer.Parameters, "stride", 1)
 			padding := getIntParam(layer.Parameters, "padding", 0)
 			useBias := getBoolParam(layer.Parameters, "use_bias", true)
-			
+
 			spec.ParamInt[0] = int32(inputChannels)
 			spec.ParamInt[1] = int32(outputChannels)
 			spec.ParamInt[2] = int32(kernelSize)
@@ -1383,13 +1403,13 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 			spec.ParamInt[4] = int32(padding)
 			spec.ParamInt[5] = boolToInt32(useBias)
 			spec.ParamIntCount = 6
-			
+
 			// Calculate output spatial dimensions
 			if len(currentShape) >= 4 {
 				inputH := currentShape[2]
 				inputW := currentShape[3]
-				outputH := (inputH + 2*padding - kernelSize) / stride + 1
-				outputW := (inputW + 2*padding - kernelSize) / stride + 1
+				outputH := (inputH+2*padding-kernelSize)/stride + 1
+				outputW := (inputW+2*padding-kernelSize)/stride + 1
 				currentShape = []int{currentShape[0], outputChannels, outputH, outputW}
 			}
 
@@ -1401,7 +1421,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 
 		case LeakyReLU:
 			spec.LayerType = 7 // LeakyReLU = 7 in Go enum (next available after BatchNorm=6)
-			
+
 			negativeSlope := getFloatParam(layer.Parameters, "negative_slope", 0.01)
 			spec.ParamFloat[0] = negativeSlope
 			spec.ParamFloatCount = 1
@@ -1410,7 +1430,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 
 		case ELU:
 			spec.LayerType = 8 // ELU = 8 in Go enum (next available after LeakyReLU=7)
-			
+
 			alpha := getFloatParam(layer.Parameters, "alpha", 1.0)
 			spec.ParamFloat[0] = alpha
 			spec.ParamFloatCount = 1
@@ -1437,7 +1457,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 
 		case Softmax:
 			spec.LayerType = 3 // Softmax = 3 in C
-			
+
 			axis := getIntParam(layer.Parameters, "axis", -1)
 			spec.ParamInt[0] = int32(axis)
 			spec.ParamIntCount = 1
@@ -1445,11 +1465,11 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 
 		case Dropout:
 			spec.LayerType = 5 // Dropout = 5 in Go enum
-			
+
 			rate := getFloatParam(layer.Parameters, "rate", 0.5)
 			// CRITICAL FIX: For inference, always set training=false (disables dropout)
 			training := false // Force inference mode - dropout disabled
-			
+
 			spec.ParamFloat[0] = rate
 			spec.ParamInt[0] = boolToInt32(training)
 			spec.ParamFloatCount = 1
@@ -1458,7 +1478,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 
 		case BatchNorm:
 			numFeatures := getIntParam(layer.Parameters, "num_features", 0)
-			
+
 			// DEBUG: Log num_features extraction for layer 8
 			if i == 8 {
 				fmt.Printf("\n🔍 Layer 8 debug: numFeatures=%d, currentShape=%v\n", numFeatures, currentShape)
@@ -1467,13 +1487,13 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 					fmt.Printf("🔍 num_features type: %T, value: %v\n", val, val)
 				}
 			}
-			
+
 			// UNIVERSAL FIX: Handle corrupted BatchNorm layers consistently with computeBatchNormInfo
 			// Check if this BatchNorm layer should be converted to an identity layer
 			if numFeatures <= 0 && len(currentShape) >= 2 {
 				// Try to infer from input shape (same logic as computeBatchNormInfo)
 				expectedFeatures := currentShape[1]
-				
+
 				if expectedFeatures <= 0 && len(currentShape) == 4 && currentShape[2] > 0 && currentShape[3] > 0 {
 					// Try to infer from spatial dimensions (same logic as computeBatchNormInfo)
 					batchElements := 1
@@ -1493,14 +1513,14 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 						}
 					}
 				}
-				
+
 				if numFeatures > 0 && expectedFeatures <= 0 {
 					expectedFeatures = numFeatures
 				}
 				if expectedFeatures > 0 && numFeatures <= 0 {
 					numFeatures = expectedFeatures
 				}
-				
+
 				// If still invalid, convert to identity layer (no parameters)
 				if numFeatures <= 0 {
 					// Convert corrupted BatchNorm to Identity layer (layer type that Metal side handles as pass-through)
@@ -1515,11 +1535,11 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 					continue // Skip normal BatchNorm processing
 				}
 			}
-			
+
 			// Normal BatchNorm processing for valid layers
 			spec.LayerType = 6 // BatchNorm = 6 in Go enum (next available after Dropout=5)
 			fmt.Printf("6 (BatchNorm)\n")
-			
+
 			eps := getFloatParam(layer.Parameters, "eps", 1e-5)
 			momentum := getFloatParam(layer.Parameters, "momentum", 0.1)
 			affine := getBoolParam(layer.Parameters, "affine", true)
@@ -1527,7 +1547,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 			// CRITICAL FIX: For inference, always set training=false regardless of stored value
 			// This ensures BatchNorm uses running statistics instead of batch statistics
 			training := false // Force inference mode
-			
+
 			// Pack parameters: [eps, momentum] in floats, [num_features, affine, track_running_stats, training] in ints
 			spec.ParamFloat[0] = eps
 			spec.ParamFloat[1] = momentum
@@ -1537,7 +1557,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 			spec.ParamInt[3] = boolToInt32(training) // This will now be 0 (false)
 			spec.ParamFloatCount = 2
 			spec.ParamIntCount = 4
-			
+
 			// ARCHITECTURAL FIX: Initialize running statistics for BatchNorm layers
 			if trackRunningStats && numFeatures > 0 {
 				// Initialize running statistics (will be properly set by training engine)
@@ -1548,7 +1568,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 					spec.RunningVar[i] = 1.0
 				}
 				spec.HasRunningStats = true
-				
+
 				// Extract from existing running statistics if available
 				if layer.RunningStatistics != nil {
 					if runningMean, exists := layer.RunningStatistics["running_mean"]; exists {
@@ -1577,7 +1597,7 @@ func (ms *ModelSpec) ConvertToDynamicLayerSpecs() ([]DynamicLayerSpec, error) {
 type DynamicLayerSpec struct {
 	LayerType       int32
 	Name            string
-	NameBytes       [64]byte  // C-compatible name storage
+	NameBytes       [64]byte // C-compatible name storage
 	InputShape      [4]int32
 	InputShapeLen   int32
 	OutputShape     [4]int32

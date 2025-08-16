@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
@@ -104,41 +106,41 @@ func TestTrainingConfigValidation(t *testing.T) {
 		{
 			name: "valid_sgd_config",
 			config: TrainingConfig{
-				LearningRate:   0.01,
-				Beta1:          0.0,
-				Beta2:          0.0,
-				WeightDecay:    0.001,
-				Epsilon:        1e-8,
-				OptimizerType:  0, // SGD
-				ProblemType:    0, // Classification
-				LossFunction:   0, // CrossEntropy
+				LearningRate:  0.01,
+				Beta1:         0.0,
+				Beta2:         0.0,
+				WeightDecay:   0.001,
+				Epsilon:       1e-8,
+				OptimizerType: 0, // SGD
+				ProblemType:   0, // Classification
+				LossFunction:  0, // CrossEntropy
 			},
 		},
 		{
 			name: "valid_adam_config",
 			config: TrainingConfig{
-				LearningRate:   0.001,
-				Beta1:          0.9,
-				Beta2:          0.999,
-				WeightDecay:    0.0001,
-				Epsilon:        1e-8,
-				OptimizerType:  1, // Adam
-				ProblemType:    0, // Classification
-				LossFunction:   0, // CrossEntropy
+				LearningRate:  0.001,
+				Beta1:         0.9,
+				Beta2:         0.999,
+				WeightDecay:   0.0001,
+				Epsilon:       1e-8,
+				OptimizerType: 1, // Adam
+				ProblemType:   0, // Classification
+				LossFunction:  0, // CrossEntropy
 			},
 		},
 		{
 			name: "valid_rmsprop_config",
 			config: TrainingConfig{
-				LearningRate:   0.001,
-				Alpha:          0.99,
-				Epsilon:        1e-8,
-				WeightDecay:    0.0,
-				Momentum:       0.0,
-				Centered:       false,
-				OptimizerType:  2, // RMSProp
-				ProblemType:    0, // Classification
-				LossFunction:   0, // CrossEntropy
+				LearningRate:  0.001,
+				Alpha:         0.99,
+				Epsilon:       1e-8,
+				WeightDecay:   0.0,
+				Momentum:      0.0,
+				Centered:      false,
+				OptimizerType: 2, // RMSProp
+				ProblemType:   0, // Classification
+				LossFunction:  0, // CrossEntropy
 			},
 		},
 	}
@@ -176,7 +178,7 @@ func TestInferenceConfigValidation(t *testing.T) {
 	if len(config.InputShape) != int(config.InputShapeLen) {
 		t.Error("InputShape length doesn't match InputShapeLen")
 	}
-	
+
 	if config.ProblemType < 0 {
 		t.Error("Invalid problem type")
 	}
@@ -186,7 +188,7 @@ func TestInferenceConfigValidation(t *testing.T) {
 
 // Test buffer operations
 func TestBufferOperations(t *testing.T) {
-	const bufferSize = 256 // 256 bytes
+	const bufferSize = 256           // 256 bytes
 	const numFloats = bufferSize / 4 // 64 float32 values
 
 	// Create test buffer

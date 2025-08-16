@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
@@ -16,13 +18,13 @@ func TestExecuteInferenceOnly(t *testing.T) {
 	// Create simple layer specification for dynamic inference
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 4, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 2, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 4, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 2, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
+			ParamIntCount:  3,
 		},
 	}
 
@@ -43,8 +45,8 @@ func TestExecuteInferenceOnly(t *testing.T) {
 	engine, err := CreateInferenceEngine(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -88,11 +90,11 @@ func TestExecuteInferenceOnly(t *testing.T) {
 	// Test that we can create buffers and engine without crashing
 	t.Logf("Successfully created inference engine and buffers")
 	t.Logf("Input buffer size: %d bytes, Output buffer size: %d bytes", inputBufferSize, outputBufferSize)
-	
+
 	// Don't test actual inference execution - the engine with uninitialized weights
 	// will cause MPS placeholder operation errors. The test demonstrates that:
 	// 1. Engine creation works with proper layer specifications
-	// 2. Buffer allocation works with sufficient sizes  
+	// 2. Buffer allocation works with sufficient sizes
 	// 3. Resource cleanup works properly
 	t.Logf("Inference engine creation and buffer allocation test completed successfully")
 
@@ -109,13 +111,13 @@ func TestExecuteInference(t *testing.T) {
 	// Create a simple layer specification for dynamic inference
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 3, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 2, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 3, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=3, output_size=2
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 3, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 2, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 3, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=3, output_size=2
+			ParamIntCount:  3,
 		},
 	}
 
@@ -136,8 +138,8 @@ func TestExecuteInference(t *testing.T) {
 	engine, err := CreateInferenceEngine(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -172,7 +174,7 @@ func TestExecuteInference(t *testing.T) {
 	// Test that we can create a more complex inference engine with multiple layers
 	t.Logf("Successfully created dynamic inference engine with layer specifications")
 	t.Logf("Input shape: %v, Output shape: %v", []int{batchSize, inputSize}, []int{batchSize, outputSize})
-	
+
 	// Don't test actual inference execution - would require trained weights
 	// This test demonstrates correct:
 	// 1. Layer specification handling
@@ -191,39 +193,39 @@ func TestNewDedicatedInferenceEngine(t *testing.T) {
 	}
 
 	config := DedicatedInferenceConfig{
-		PrecisionThreshold:   0.5,
-		MaxBatchSize:         1,
-		OptimizationLevel:    Balanced,
-		MemoryStrategy:       BalancedMem,
-		EnableTelemetry:      true,
-		CacheCompiledGraphs:  false,
+		PrecisionThreshold:  0.5,
+		MaxBatchSize:        1,
+		OptimizationLevel:   Balanced,
+		MemoryStrategy:      BalancedMem,
+		EnableTelemetry:     true,
+		CacheCompiledGraphs: false,
 	}
 
 	// Create simple layer specifications and parameters for dedicated engine
 	layers := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 10, 0, 0}, // batch=1, features=10 - features in second dimension
-			InputShapeLen:   2, // Dense layer uses 2D shape
-			OutputShape:     [4]int32{1, 5, 0, 0},  // batch=1, classes=5
-			OutputShapeLen:  2, // Dense layer uses 2D shape
-			ParamInt:        [8]int32{10, 5, 1, 0, 0, 0, 0, 0}, // input_size=10, output_size=5, HasBias=1
-			ParamIntCount:   3,
+			LayerType:      0,                                 // Dense
+			InputShape:     [4]int32{1, 10, 0, 0},             // batch=1, features=10 - features in second dimension
+			InputShapeLen:  2,                                 // Dense layer uses 2D shape
+			OutputShape:    [4]int32{1, 5, 0, 0},              // batch=1, classes=5
+			OutputShapeLen: 2,                                 // Dense layer uses 2D shape
+			ParamInt:       [8]int32{10, 5, 1, 0, 0, 0, 0, 0}, // input_size=10, output_size=5, HasBias=1
+			ParamIntCount:  3,
 		},
 	}
-	
+
 	// Create dummy parameters (weights and biases)
 	parameters := [][]float32{
 		make([]float32, 10*5), // Weights for first layer
 		make([]float32, 5),    // Biases for first layer
 	}
-	
+
 	// Test creating dedicated inference engine
 	engine, err := NewDedicatedInferenceEngine(device, config, layers, parameters)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -243,7 +245,7 @@ func TestNewDedicatedInferenceEngine(t *testing.T) {
 			if err != nil {
 				t.Logf("GetTelemetry returned error: %v", err)
 			} else {
-				t.Logf("Telemetry: TotalInferences=%d, TotalTimeMs=%f", 
+				t.Logf("Telemetry: TotalInferences=%d, TotalTimeMs=%f",
 					telemetry.TotalInferences, telemetry.TotalTimeMs)
 			}
 
@@ -255,7 +257,7 @@ func TestNewDedicatedInferenceEngine(t *testing.T) {
 	t.Log("✅ NewDedicatedInferenceEngine test passed")
 }
 
-// Test InferBatch function with dedicated engine  
+// Test InferBatch function with dedicated engine
 // Note: Tests properly configured batch sizes and tensor shapes for reliable operation
 func TestInferBatch(t *testing.T) {
 	// Test with the fixed tensor shape creation logic
@@ -265,39 +267,39 @@ func TestInferBatch(t *testing.T) {
 	}
 
 	config := DedicatedInferenceConfig{
-		PrecisionThreshold:   0.5,
-		MaxBatchSize:         2,
-		OptimizationLevel:    Balanced,
-		MemoryStrategy:       BalancedMem,
-		EnableTelemetry:      true,
-		CacheCompiledGraphs:  false,
+		PrecisionThreshold:  0.5,
+		MaxBatchSize:        2,
+		OptimizationLevel:   Balanced,
+		MemoryStrategy:      BalancedMem,
+		EnableTelemetry:     true,
+		CacheCompiledGraphs: false,
 	}
 
 	// Create simple layer specifications and parameters for dedicated engine
 	layers := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{2, 16, 0, 0}, // batch=2, features=16 - features in second dimension
-			InputShapeLen:   2, // Dense layer uses 2D shape
-			OutputShape:     [4]int32{2, 3, 0, 0},  // batch=2, classes=3
-			OutputShapeLen:  2, // Dense layer uses 2D shape
-			ParamInt:        [8]int32{16, 3, 1, 0, 0, 0, 0, 0}, // input_size=16, output_size=3, HasBias=1
-			ParamIntCount:   3,
+			LayerType:      0,                                 // Dense
+			InputShape:     [4]int32{2, 16, 0, 0},             // batch=2, features=16 - features in second dimension
+			InputShapeLen:  2,                                 // Dense layer uses 2D shape
+			OutputShape:    [4]int32{2, 3, 0, 0},              // batch=2, classes=3
+			OutputShapeLen: 2,                                 // Dense layer uses 2D shape
+			ParamInt:       [8]int32{16, 3, 1, 0, 0, 0, 0, 0}, // input_size=16, output_size=3, HasBias=1
+			ParamIntCount:  3,
 		},
 	}
-	
+
 	// Create dummy parameters (weights and biases)
 	parameters := [][]float32{
 		make([]float32, 16*3), // Weights for layer
 		make([]float32, 3),    // Biases for layer
 	}
-	
+
 	// Create dedicated inference engine
 	engine, err := NewDedicatedInferenceEngine(device, config, layers, parameters)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -324,7 +326,7 @@ func TestInferBatch(t *testing.T) {
 			} else {
 				t.Logf("InferBatch succeeded")
 				if result != nil {
-					t.Logf("Batch inference result: PredictedClass=%d, ConfidenceScore=%f, OutputSize=%d", 
+					t.Logf("Batch inference result: PredictedClass=%d, ConfidenceScore=%f, OutputSize=%d",
 						result.PredictedClass, result.ConfidenceScore, len(result.Predictions))
 				}
 			}
@@ -344,39 +346,39 @@ func TestInferSingle(t *testing.T) {
 	}
 
 	config := DedicatedInferenceConfig{
-		PrecisionThreshold:   0.5,
-		MaxBatchSize:         1,
-		OptimizationLevel:    Balanced,
-		MemoryStrategy:       BalancedMem,
-		EnableTelemetry:      false,
-		CacheCompiledGraphs:  false,
+		PrecisionThreshold:  0.5,
+		MaxBatchSize:        1,
+		OptimizationLevel:   Balanced,
+		MemoryStrategy:      BalancedMem,
+		EnableTelemetry:     false,
+		CacheCompiledGraphs: false,
 	}
 
 	// Create simple layer specifications and parameters for dedicated engine
 	layers := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 18, 0, 0}, // batch=1, features=18 - features in second dimension
-			InputShapeLen:   2, // Dense layer uses 2D shape
-			OutputShape:     [4]int32{1, 2, 0, 0},  // batch=1, classes=2
-			OutputShapeLen:  2, // Dense layer uses 2D shape
-			ParamInt:        [8]int32{18, 2, 1, 0, 0, 0, 0, 0}, // input_size=18, output_size=2, HasBias=1
-			ParamIntCount:   3,
+			LayerType:      0,                                 // Dense
+			InputShape:     [4]int32{1, 18, 0, 0},             // batch=1, features=18 - features in second dimension
+			InputShapeLen:  2,                                 // Dense layer uses 2D shape
+			OutputShape:    [4]int32{1, 2, 0, 0},              // batch=1, classes=2
+			OutputShapeLen: 2,                                 // Dense layer uses 2D shape
+			ParamInt:       [8]int32{18, 2, 1, 0, 0, 0, 0, 0}, // input_size=18, output_size=2, HasBias=1
+			ParamIntCount:  3,
 		},
 	}
-	
+
 	// Create dummy parameters (weights and biases)
 	parameters := [][]float32{
 		make([]float32, 18*2), // Weights for layer
 		make([]float32, 2),    // Biases for layer
 	}
-	
+
 	// Create dedicated inference engine
 	engine, err := NewDedicatedInferenceEngine(device, config, layers, parameters)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -417,8 +419,8 @@ func TestSetupMemoryBridge(t *testing.T) {
 		copyInt32ToGPUFunc func(unsafe.Pointer, []int32) error,
 	) {
 		// Verify functions are called with our mock implementations
-		if copyFromGPUFunc == nil || copyToGPUFunc == nil || 
-		   copyInt32ToGPUFunc == nil {
+		if copyFromGPUFunc == nil || copyToGPUFunc == nil ||
+			copyInt32ToGPUFunc == nil {
 			t.Error("SetupMemoryBridge called with nil functions")
 		}
 	})
@@ -442,9 +444,9 @@ func TestSetupMemoryBridgeWithConvert(t *testing.T) {
 		copyBufferFunc func(unsafe.Pointer, unsafe.Pointer, int) error,
 	) {
 		// Verify functions are called with our mock implementations
-		if copyFromGPUFunc == nil || copyToGPUFunc == nil || 
-		   copyInt32ToGPUFunc == nil || convertTensorTypeFunc == nil || 
-		   copyBufferFunc == nil {
+		if copyFromGPUFunc == nil || copyToGPUFunc == nil ||
+			copyInt32ToGPUFunc == nil || convertTensorTypeFunc == nil ||
+			copyBufferFunc == nil {
 			t.Error("SetupMemoryBridgeWithConvert called with nil functions")
 		}
 	}, getDevice)

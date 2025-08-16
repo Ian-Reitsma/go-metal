@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -277,19 +279,19 @@ func (nadam *NadamOptimizerState) Cleanup() {
 // Transfers GPU state to CPU in a single batched operation per buffer type
 func (nadam *NadamOptimizerState) GetState() (*OptimizerState, error) {
 	stateData := make([]checkpoints.OptimizerTensor, 0, len(nadam.momentumBuffers)*2)
-	
+
 	// Extract momentum buffers
 	for i, buffer := range nadam.momentumBuffers {
 		if buffer != nil {
 			// Calculate number of elements (buffer size / 4 bytes per float32)
 			numElements := nadam.bufferSizes[i] / 4
-			
+
 			// Read GPU buffer to CPU
 			data, err := cgo_bridge.CopyMetalBufferToFloat32Array(buffer, numElements)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read momentum buffer %d: %v", i, err)
 			}
-			
+
 			stateData = append(stateData, checkpoints.OptimizerTensor{
 				Name:      fmt.Sprintf("momentum_%d", i),
 				Shape:     []int{len(data)},
@@ -298,19 +300,19 @@ func (nadam *NadamOptimizerState) GetState() (*OptimizerState, error) {
 			})
 		}
 	}
-	
-	// Extract variance buffers  
+
+	// Extract variance buffers
 	for i, buffer := range nadam.varianceBuffers {
 		if buffer != nil {
 			// Calculate number of elements
 			numElements := nadam.bufferSizes[i] / 4
-			
+
 			// Read GPU buffer to CPU
 			data, err := cgo_bridge.CopyMetalBufferToFloat32Array(buffer, numElements)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read variance buffer %d: %v", i, err)
 			}
-			
+
 			stateData = append(stateData, checkpoints.OptimizerTensor{
 				Name:      fmt.Sprintf("variance_%d", i),
 				Shape:     []int{len(data)},
@@ -319,7 +321,7 @@ func (nadam *NadamOptimizerState) GetState() (*OptimizerState, error) {
 			})
 		}
 	}
-	
+
 	return &OptimizerState{
 		Type: "Nadam",
 		Parameters: map[string]interface{}{
@@ -341,7 +343,7 @@ func (nadam *NadamOptimizerState) LoadState(state *OptimizerState) error {
 	if err := validateStateType("Nadam", state); err != nil {
 		return err
 	}
-	
+
 	// Restore hyperparameters
 	if lr, ok := state.Parameters["learning_rate"].(float64); ok {
 		nadam.config.LearningRate = float32(lr)
@@ -363,21 +365,21 @@ func (nadam *NadamOptimizerState) LoadState(state *OptimizerState) error {
 	} else if sc, ok := state.Parameters["step_count"].(uint64); ok {
 		nadam.currentStep = sc
 	}
-	
+
 	// Restore GPU buffers
 	for _, tensor := range state.StateData {
 		idx := extractBufferIndex(tensor.Name)
 		if idx < 0 || idx >= len(nadam.bufferSizes) {
 			return fmt.Errorf("invalid buffer index in tensor name: %s", tensor.Name)
 		}
-		
+
 		// Validate data size matches buffer size
 		expectedElements := nadam.bufferSizes[idx] / 4
 		if len(tensor.Data) != expectedElements {
 			return fmt.Errorf("data size mismatch for %s: expected %d elements, got %d",
 				tensor.Name, expectedElements, len(tensor.Data))
 		}
-		
+
 		// Write data back to GPU buffer
 		switch tensor.StateType {
 		case "momentum":
@@ -389,7 +391,7 @@ func (nadam *NadamOptimizerState) LoadState(state *OptimizerState) error {
 			}
 		case "variance":
 			if nadam.varianceBuffers[idx] == nil {
-				return fmt.Errorf("variance buffer %d is nil", idx) 
+				return fmt.Errorf("variance buffer %d is nil", idx)
 			}
 			if err := cgo_bridge.CopyFloat32ArrayToMetalBuffer(nadam.varianceBuffers[idx], tensor.Data); err != nil {
 				return fmt.Errorf("failed to restore variance buffer %d: %v", idx, err)
@@ -398,7 +400,7 @@ func (nadam *NadamOptimizerState) LoadState(state *OptimizerState) error {
 			return fmt.Errorf("unknown state type: %s", tensor.StateType)
 		}
 	}
-	
+
 	return nil
 }
 

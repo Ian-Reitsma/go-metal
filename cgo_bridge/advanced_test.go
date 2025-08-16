@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
@@ -160,7 +162,7 @@ func TestTensorTypeConversion(t *testing.T) {
 	defer DeallocateMetalBuffer(dstBuffer)
 
 	// Test tensor type conversion (same type for simplicity)
-	shape := []int{32} // 32 float32 values
+	shape := []int{32}                                                 // 32 float32 values
 	err = ConvertTensorType(srcBuffer, dstBuffer, shape, 0, 0, device) // 0 = float32
 	if err != nil {
 		// This may fail with "Unsupported type conversion" which is expected for same-type conversion
@@ -267,12 +269,12 @@ func TestConfigurationBounds(t *testing.T) {
 
 	for _, test := range configs {
 		t.Run(test.name, func(t *testing.T) {
-			isValid := test.config.LearningRate > 0 && 
-					  test.config.Epsilon > 0 &&
-					  test.config.OptimizerType >= 0 && test.config.OptimizerType <= 3
+			isValid := test.config.LearningRate > 0 &&
+				test.config.Epsilon > 0 &&
+				test.config.OptimizerType >= 0 && test.config.OptimizerType <= 3
 
 			if isValid != test.valid {
-				t.Errorf("Configuration validation mismatch for %s: expected %v, got %v", 
+				t.Errorf("Configuration validation mismatch for %s: expected %v, got %v",
 					test.name, test.valid, isValid)
 			}
 
@@ -291,7 +293,7 @@ func TestDeviceTypeUsage(t *testing.T) {
 		expected   string
 	}{
 		{"GPU", GPU, "GPU"},
-		{"CPU", CPU, "CPU"}, 
+		{"CPU", CPU, "CPU"},
 		{"PersistentGPU", PersistentGPU, "PersistentGPU"},
 	}
 

@@ -1,10 +1,11 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
 	"testing"
 	"unsafe"
 )
-
 
 // Test ExecuteAdamStepMPSGraph function
 func TestExecuteAdamStepMPSGraph(t *testing.T) {
@@ -87,12 +88,12 @@ func TestExecuteAdamStepMPSGraph(t *testing.T) {
 		momentumBuffers,
 		velocityBuffers,
 		bufferSizes,
-		0.001, // learning rate
-		0.9,   // beta1
-		0.999, // beta2
-		1e-8,  // epsilon
+		0.001,  // learning rate
+		0.9,    // beta1
+		0.999,  // beta2
+		1e-8,   // epsilon
 		0.0001, // weight decay
-		1,     // step count
+		1,      // step count
 	)
 
 	if err != nil {
@@ -156,13 +157,13 @@ func TestExecuteAdamStepMPSGraphPooled(t *testing.T) {
 		momentumBuffers,
 		velocityBuffers,
 		bufferSizes,
-		0.001, // learning rate
-		0.9,   // beta1
-		0.999, // beta2
-		1e-8,  // epsilon
+		0.001,  // learning rate
+		0.9,    // beta1
+		0.999,  // beta2
+		1e-8,   // epsilon
 		0.0001, // weight decay
-		1,     // step count
-		nil,   // command pool (nil for this test)
+		1,      // step count
+		nil,    // command pool (nil for this test)
 	)
 
 	if err != nil {
@@ -270,13 +271,13 @@ func TestExecuteRMSPropStepMPSGraph(t *testing.T) {
 		momentumBuffers,
 		gradientAvgBuffers,
 		bufferSizes,
-		0.001, // learning rate
-		0.99,  // alpha
-		1e-8,  // epsilon
+		0.001,  // learning rate
+		0.99,   // alpha
+		1e-8,   // epsilon
 		0.0001, // weight decay
-		0.0,   // momentum
-		false, // centered
-		1,     // step count
+		0.0,    // momentum
+		false,  // centered
+		1,      // step count
 	)
 
 	if err != nil {
@@ -367,24 +368,24 @@ func TestExecuteTrainingStepSGDPooled(t *testing.T) {
 			DestroyTrainingEngine(engine)
 		}
 	}()
-	
+
 	// Create input and label buffers for the training step
 	inputBuffer, err := createTestBuffer(bufferSize, GPU, t)
 	if err != nil {
 		return
 	}
 	defer DeallocateMetalBuffer(inputBuffer)
-	
+
 	labelBuffer, err := createTestBuffer(bufferSize, GPU, t)
 	if err != nil {
 		return
 	}
 	defer DeallocateMetalBuffer(labelBuffer)
-	
+
 	// Test that we can create training engine with SGD optimizer for pooled operations
 	t.Logf("Successfully created SGD training engine with command pooling support")
 	t.Logf("Engine supports SGD optimization with command buffer pooling")
-	
+
 	// Don't test actual pooled training - requires complex command pool setup
 	// This test demonstrates:
 	// 1. SGD training engine creation with pooled operations support
@@ -439,11 +440,11 @@ func TestExecuteAdaGradStepMPSGraph(t *testing.T) {
 		weightBuffers,
 		gradientBuffers,
 		squaredGradSumBuffers,
-		1,         // numWeights
+		1, // numWeights
 		bufferSizes,
-		0.01,      // learning rate
-		1e-8,      // epsilon
-		0.001,     // weight decay
+		0.01,  // learning rate
+		1e-8,  // epsilon
+		0.001, // weight decay
 	)
 
 	if err != nil {
@@ -505,11 +506,11 @@ func TestExecuteAdaDeltaStepMPSGraph(t *testing.T) {
 		gradientBuffers,
 		squaredGradAvgBuffers,
 		squaredDeltaAvgBuffers,
-		1,         // numWeights
+		1, // numWeights
 		bufferSizes,
-		0.95,      // rho
-		1e-8,      // epsilon
-		0.001,     // weight decay
+		0.95,  // rho
+		1e-8,  // epsilon
+		0.001, // weight decay
 	)
 
 	if err != nil {
@@ -572,12 +573,12 @@ func TestExecuteNadamStepMPSGraph(t *testing.T) {
 		momentumBuffers,
 		velocityBuffers,
 		bufferSizes,
-		0.001, // learning rate
-		0.9,   // beta1
-		0.999, // beta2
-		1e-8,  // epsilon
+		0.001,  // learning rate
+		0.9,    // beta1
+		0.999,  // beta2
+		1e-8,   // epsilon
 		0.0001, // weight decay
-		1,     // step count
+		1,      // step count
 	)
 
 	if err != nil {

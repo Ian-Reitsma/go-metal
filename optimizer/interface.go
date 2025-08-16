@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -45,9 +47,9 @@ type Optimizer interface {
 // OptimizerState represents the complete state of an optimizer
 // Compatible with checkpoints.OptimizerState for serialization
 type OptimizerState struct {
-	Type       string                          `json:"type"`       // "Adam", "SGD", etc.
-	Parameters map[string]interface{}          `json:"parameters"` // Hyperparameters
-	StateData  []checkpoints.OptimizerTensor   `json:"state_data"` // GPU state tensors
+	Type       string                        `json:"type"`       // "Adam", "SGD", etc.
+	Parameters map[string]interface{}        `json:"parameters"` // Hyperparameters
+	StateData  []checkpoints.OptimizerTensor `json:"state_data"` // GPU state tensors
 }
 
 // Common helper functions for state extraction
@@ -63,11 +65,11 @@ func extractBufferIndex(name string) int {
 			break
 		}
 	}
-	
+
 	if lastUnderscoreIdx == -1 {
 		return -1
 	}
-	
+
 	// Try to parse the number after the last underscore
 	if n, err := fmt.Sscanf(name[lastUnderscoreIdx+1:], "%d", &idx); n == 1 && err == nil {
 		return idx
