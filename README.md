@@ -50,6 +50,25 @@ Why did I build this? I wanted to increase my knowledge in Machine Learning, and
 - **Checkpointing**: Model saving and loading (ONNX format supported)
 - **Mixed Precision**: Float16 support for memory-efficient training
 
+## 📁 Repository Layout
+
+| Path | Description |
+|------|-------------|
+| app/ | Demo applications |
+| async/ | Asynchronous command buffers, staging pools, and dataloaders |
+| cgo_bridge/ | Objective-C bridge to Metal/MPSGraph (needs Apple clang and ARC) |
+| checkpoints/ | Model checkpoints and training state |
+| docs/ | Generated documentation (`task docs`) |
+| engine/ | Tensor engine, autograd, execution helpers |
+| examples/ | Stand-alone usage examples |
+| layers/ | Neural network layer implementations |
+| memory/ | GPU memory management utilities |
+| optimizer/ | Optimization algorithms |
+| training/ | Training loop orchestration |
+| vision/ | Vision datasets, preprocessing, dataloaders |
+| Taskfile.yml | Build/test/docs task definitions |
+| enhancements.md | Roadmap of planned features |
+
 ## 📋 Requirements
 
 - **Operating System**: macOS 12.0+ (Monterey or later)
@@ -785,10 +804,44 @@ Contributions are welcome.
    # This generates documentation (docs.md) in every directory in go-metal
    task docs
    ```
-3. Make your changes and ensure tests pass:
+3. Ensure you have Apple's Clang with Objective-C ARC support. On macOS this is included with the Xcode Command Line Tools:
    ```bash
-   go test ./...
+   xcode-select --install    # installs clang with ARC support
+   which clang               # verify clang is available
+   clang --version           # confirm it's Apple clang
    ```
+
+   Tests require this compiler and will fail on systems without ARC (e.g. Linux) with errors like `-fobjc-arc is not supported`.
+
+4. Format, vet, and test your changes:
+   ```bash
+   gofmt -w .                # or go fmt ./...
+   go vet ./...              # optional static checks
+   CC=clang go test ./...    # run tests with ARC enabled
+   ```
+
+   Alternatively, set `CC=clang` once and use the Taskfile:
+   ```bash
+   export CC=clang
+   task test
+   ```
+
+### Testing
+
+The full test suite exercises the Metal bindings and must be run with Apple's clang so Objective-C ARC is enabled. On macOS:
+
+```bash
+xcode-select --install    # once, installs clang with ARC support
+CC=clang go test ./...
+```
+
+In environments without ARC or Metal (e.g. this Linux container), you can still run the pure-Go tests:
+
+```bash
+CGO_ENABLED=0 go test ./checkpoints
+```
+
+If the Metal-dependent tests cannot be executed, document the missing dependencies in your PR.
 
 ### Areas for Contribution
 - More neural network layers (LSTM, Transformer blocks)
