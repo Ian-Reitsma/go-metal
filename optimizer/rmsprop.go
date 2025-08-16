@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -337,7 +339,7 @@ func (rmsprop *RMSPropOptimizerState) Cleanup() {
 // Transfers GPU state to CPU in batched operations
 func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 	stateData := make([]checkpoints.OptimizerTensor, 0)
-	
+
 	// Extract squared gradient average buffers
 	for i, buffer := range rmsprop.SquaredGradAvgBuffers {
 		if buffer != nil {
@@ -346,7 +348,7 @@ func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to read squared grad avg buffer %d: %v", i, err)
 			}
-			
+
 			stateData = append(stateData, checkpoints.OptimizerTensor{
 				Name:      fmt.Sprintf("squared_grad_avg_%d", i),
 				Shape:     []int{len(data)},
@@ -355,7 +357,7 @@ func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 			})
 		}
 	}
-	
+
 	// Extract momentum buffers if momentum is used
 	if rmsprop.Momentum > 0 {
 		for i, buffer := range rmsprop.MomentumBuffers {
@@ -365,7 +367,7 @@ func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to read momentum buffer %d: %v", i, err)
 				}
-				
+
 				stateData = append(stateData, checkpoints.OptimizerTensor{
 					Name:      fmt.Sprintf("momentum_%d", i),
 					Shape:     []int{len(data)},
@@ -375,7 +377,7 @@ func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 			}
 		}
 	}
-	
+
 	// Extract gradient average buffers if centered
 	if rmsprop.Centered {
 		for i, buffer := range rmsprop.GradientAvgBuffers {
@@ -385,7 +387,7 @@ func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to read gradient avg buffer %d: %v", i, err)
 				}
-				
+
 				stateData = append(stateData, checkpoints.OptimizerTensor{
 					Name:      fmt.Sprintf("gradient_avg_%d", i),
 					Shape:     []int{len(data)},
@@ -395,7 +397,7 @@ func (rmsprop *RMSPropOptimizerState) GetState() (*OptimizerState, error) {
 			}
 		}
 	}
-	
+
 	return &OptimizerState{
 		Type: "RMSProp",
 		Parameters: map[string]interface{}{
@@ -417,7 +419,7 @@ func (rmsprop *RMSPropOptimizerState) LoadState(state *OptimizerState) error {
 	if err := validateStateType("RMSProp", state); err != nil {
 		return err
 	}
-	
+
 	// Restore hyperparameters
 	if lr, ok := state.Parameters["learning_rate"].(float64); ok {
 		rmsprop.LearningRate = float32(lr)
@@ -440,21 +442,21 @@ func (rmsprop *RMSPropOptimizerState) LoadState(state *OptimizerState) error {
 	if sc, ok := state.Parameters["step_count"].(float64); ok {
 		rmsprop.StepCount = uint64(sc)
 	}
-	
+
 	// Restore GPU buffers
 	for _, tensor := range state.StateData {
 		idx := extractBufferIndex(tensor.Name)
 		if idx < 0 || idx >= len(rmsprop.bufferSizes) {
 			return fmt.Errorf("invalid buffer index in tensor name: %s", tensor.Name)
 		}
-		
+
 		// Validate data size
 		expectedElements := rmsprop.bufferSizes[idx] / 4
 		if len(tensor.Data) != expectedElements {
 			return fmt.Errorf("data size mismatch for %s: expected %d elements, got %d",
 				tensor.Name, expectedElements, len(tensor.Data))
 		}
-		
+
 		// Write data back to GPU buffer
 		switch tensor.StateType {
 		case "squared_grad_avg":
@@ -482,6 +484,6 @@ func (rmsprop *RMSPropOptimizerState) LoadState(state *OptimizerState) error {
 			return fmt.Errorf("unknown state type: %s", tensor.StateType)
 		}
 	}
-	
+
 	return nil
 }

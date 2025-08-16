@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
@@ -10,11 +12,11 @@ import (
 
 // Shared test resources
 var (
-	sharedTestDevice    unsafe.Pointer
-	sharedTestQueue     unsafe.Pointer
-	sharedTestMutex     sync.Mutex
-	setupErr            error
-	setupOnce           sync.Once
+	sharedTestDevice unsafe.Pointer
+	sharedTestQueue  unsafe.Pointer
+	sharedTestMutex  sync.Mutex
+	setupErr         error
+	setupOnce        sync.Once
 )
 
 // setupSharedTestResources initializes shared resources for all tests
@@ -77,13 +79,13 @@ func getSharedCommandQueue() (unsafe.Pointer, error) {
 func TestMain(m *testing.M) {
 	// Setup shared resources
 	setupSharedTestResources()
-	
+
 	// Run tests
 	exitCode := m.Run()
-	
+
 	// Cleanup shared resources
 	cleanupSharedTestResources()
-	
+
 	// Exit with the same code as the tests
 	if exitCode != 0 {
 		return
@@ -100,18 +102,18 @@ func createTestTrainingEngine(config TrainingConfig, t *testing.T) (unsafe.Point
 		}
 		return nil, err
 	}
-	
+
 	engine, err := CreateTrainingEngine(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return nil, err
 		}
 		return nil, err
 	}
-	
+
 	return engine, nil
 }
 
@@ -125,18 +127,18 @@ func createTestInferenceEngine(config InferenceConfig, t *testing.T) (unsafe.Poi
 		}
 		return nil, err
 	}
-	
+
 	engine, err := CreateInferenceEngine(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return nil, err
 		}
 		return nil, err
 	}
-	
+
 	return engine, nil
 }
 
@@ -150,17 +152,17 @@ func createTestBuffer(size int, deviceType DeviceType, t *testing.T) (unsafe.Poi
 		}
 		return nil, err
 	}
-	
+
 	buffer, err := AllocateMetalBuffer(device, size, deviceType)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return nil, err
 		}
 		return nil, err
 	}
-	
+
 	return buffer, nil
 }

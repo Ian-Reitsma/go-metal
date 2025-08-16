@@ -1,3 +1,6 @@
+//go:build darwin && cgo
+// +build darwin,cgo
+
 #import "bridge_optimizer.h"
 #import "bridge_training.h"
 #import <math.h>

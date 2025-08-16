@@ -1,3 +1,6 @@
+//go:build darwin && cgo
+// +build darwin,cgo
+
 #import "bridge_inference.h"
 #import "bridge_graph.h"
 #import "bridge_memory.h"

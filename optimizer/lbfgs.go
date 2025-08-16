@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -12,7 +14,7 @@ import (
 type LBFGSOptimizerState struct {
 	// Configuration
 	config LBFGSConfig
-	
+
 	// GPU-resident state buffers
 	sVectors      [][]unsafe.Pointer // Parameter differences s_k = x_{k+1} - x_k
 	yVectors      [][]unsafe.Pointer // Gradient differences y_k = g_{k+1} - g_k
@@ -21,21 +23,21 @@ type LBFGSOptimizerState struct {
 	oldGradients  []unsafe.Pointer   // Previous gradients for computing y_k
 	searchDir     []unsafe.Pointer   // Search direction p_k
 	WeightBuffers []unsafe.Pointer   // Current weight tensors
-	
+
 	// History tracking
 	currentStep  uint64
-	historyCount int  // Current number of stored history pairs
-	historyIndex int  // Circular buffer index
-	
+	historyCount int // Current number of stored history pairs
+	historyIndex int // Circular buffer index
+
 	// Buffer management
 	memoryManager *memory.MemoryManager
 	device        unsafe.Pointer
 	bufferSizes   []int
-	
+
 	// Command buffer pooling
 	commandPool unsafe.Pointer
 	usePooling  bool
-	
+
 	// Line search state
 	prevLoss     float32
 	prevGradNorm float32
@@ -73,21 +75,21 @@ func NewLBFGSOptimizer(
 	if memoryManager == nil {
 		return nil, fmt.Errorf("memory manager cannot be nil")
 	}
-	
+
 	if device == nil {
 		return nil, fmt.Errorf("device cannot be nil")
 	}
-	
+
 	if len(weightShapes) == 0 {
 		return nil, fmt.Errorf("no weight shapes provided")
 	}
-	
+
 	if config.HistorySize <= 0 {
 		return nil, fmt.Errorf("history size must be positive, got %d", config.HistorySize)
 	}
-	
+
 	numWeights := len(weightShapes)
-	
+
 	lbfgs := &LBFGSOptimizerState{
 		config:        config,
 		sVectors:      make([][]unsafe.Pointer, config.HistorySize),
@@ -103,17 +105,17 @@ func NewLBFGSOptimizer(
 		device:        device,
 		bufferSizes:   make([]int, numWeights),
 	}
-	
+
 	// Calculate buffer sizes
 	for i, shape := range weightShapes {
 		lbfgs.bufferSizes[i] = calculateTensorSize(shape) * 4 // 4 bytes per float32
 	}
-	
+
 	// Allocate history vectors (s and y) for circular buffer
 	for h := 0; h < config.HistorySize; h++ {
 		lbfgs.sVectors[h] = make([]unsafe.Pointer, numWeights)
 		lbfgs.yVectors[h] = make([]unsafe.Pointer, numWeights)
-		
+
 		// Allocate buffers for each weight tensor
 		for i, size := range lbfgs.bufferSizes {
 			// Allocate s vector
@@ -123,7 +125,7 @@ func NewLBFGSOptimizer(
 				return nil, fmt.Errorf("failed to allocate s vector buffer for history %d, weight %d", h, i)
 			}
 			lbfgs.sVectors[h][i] = sBuffer
-			
+
 			// Allocate y vector
 			yBuffer := lbfgs.memoryManager.AllocateBuffer(size)
 			if yBuffer == nil {
@@ -131,7 +133,7 @@ func NewLBFGSOptimizer(
 				return nil, fmt.Errorf("failed to allocate y vector buffer for history %d, weight %d", h, i)
 			}
 			lbfgs.yVectors[h][i] = yBuffer
-			
+
 			// Initialize to zero
 			if err := cgo_bridge.ZeroMetalBuffer(lbfgs.device, sBuffer, size); err != nil {
 				lbfgs.cleanup()
@@ -142,7 +144,7 @@ func NewLBFGSOptimizer(
 				return nil, fmt.Errorf("failed to zero y buffer: %v", err)
 			}
 		}
-		
+
 		// Allocate rho scalar buffer (single float32)
 		rhoBuffer := lbfgs.memoryManager.AllocateBuffer(4)
 		if rhoBuffer == nil {
@@ -151,7 +153,7 @@ func NewLBFGSOptimizer(
 		}
 		lbfgs.rhoBuffers[h] = rhoBuffer
 	}
-	
+
 	// Allocate alpha buffer for two-loop recursion
 	alphaSize := config.HistorySize * 4 // m float32 values
 	lbfgs.alphaBuffer = lbfgs.memoryManager.AllocateBuffer(alphaSize)
@@ -159,7 +161,7 @@ func NewLBFGSOptimizer(
 		lbfgs.cleanup()
 		return nil, fmt.Errorf("failed to allocate alpha buffer")
 	}
-	
+
 	// Allocate old gradients and search direction buffers
 	for i, size := range lbfgs.bufferSizes {
 		// Old gradients
@@ -169,7 +171,7 @@ func NewLBFGSOptimizer(
 			return nil, fmt.Errorf("failed to allocate old gradient buffer for weight %d", i)
 		}
 		lbfgs.oldGradients[i] = oldGradBuffer
-		
+
 		// Search direction
 		searchDirBuffer := lbfgs.memoryManager.AllocateBuffer(size)
 		if searchDirBuffer == nil {
@@ -177,7 +179,7 @@ func NewLBFGSOptimizer(
 			return nil, fmt.Errorf("failed to allocate search direction buffer for weight %d", i)
 		}
 		lbfgs.searchDir[i] = searchDirBuffer
-		
+
 		// Initialize to zero
 		if err := cgo_bridge.ZeroMetalBuffer(lbfgs.device, oldGradBuffer, size); err != nil {
 			lbfgs.cleanup()
@@ -188,7 +190,7 @@ func NewLBFGSOptimizer(
 			return nil, fmt.Errorf("failed to zero search direction buffer: %v", err)
 		}
 	}
-	
+
 	return lbfgs, nil
 }
 
@@ -214,12 +216,12 @@ func (lbfgs *LBFGSOptimizerState) cleanup() {
 			lbfgs.memoryManager.ReleaseBuffer(lbfgs.rhoBuffers[h])
 		}
 	}
-	
+
 	// Clean up alpha buffer
 	if lbfgs.alphaBuffer != nil {
 		lbfgs.memoryManager.ReleaseBuffer(lbfgs.alphaBuffer)
 	}
-	
+
 	// Clean up old gradients and search direction
 	for i := 0; i < len(lbfgs.WeightBuffers); i++ {
 		if lbfgs.oldGradients[i] != nil {
@@ -236,7 +238,7 @@ func (lbfgs *LBFGSOptimizerState) SetWeightBuffers(weightBuffers []unsafe.Pointe
 	if len(weightBuffers) != len(lbfgs.WeightBuffers) {
 		return fmt.Errorf("expected %d weight buffers, got %d", len(lbfgs.WeightBuffers), len(weightBuffers))
 	}
-	
+
 	copy(lbfgs.WeightBuffers, weightBuffers)
 	return nil
 }
@@ -247,9 +249,9 @@ func (lbfgs *LBFGSOptimizerState) Step(gradientBuffers []unsafe.Pointer, current
 		return fmt.Errorf("gradient buffers length (%d) doesn't match weight buffers length (%d)",
 			len(gradientBuffers), len(lbfgs.WeightBuffers))
 	}
-	
+
 	lbfgs.currentStep++
-	
+
 	// Execute L-BFGS step using CGO bridge
 	stepSize, err := cgo_bridge.ExecuteLBFGSStepMPSGraph(
 		lbfgs.device,
@@ -275,28 +277,28 @@ func (lbfgs *LBFGSOptimizerState) Step(gradientBuffers []unsafe.Pointer, current
 		lbfgs.commandPool,
 		lbfgs.usePooling,
 	)
-	
+
 	if err != nil {
 		return fmt.Errorf("L-BFGS step failed: %v", err)
 	}
-	
+
 	// Note: y_k and rho_k computation is now handled entirely in the C code
 	// to avoid race conditions and ensure proper buffer management
-	
+
 	// Update history tracking
 	lbfgs.historyIndex = (lbfgs.historyIndex + 1) % lbfgs.config.HistorySize
 	if lbfgs.historyCount < lbfgs.config.HistorySize {
 		lbfgs.historyCount++
 	}
-	
+
 	lbfgs.prevLoss = currentLoss
-	
+
 	// Log progress periodically
 	if lbfgs.currentStep%10 == 0 {
 		fmt.Printf("L-BFGS step %d: loss=%.6f, step_size=%.6f, history=%d/%d\n",
 			lbfgs.currentStep, currentLoss, stepSize, lbfgs.historyCount, lbfgs.config.HistorySize)
 	}
-	
+
 	return nil
 }
 

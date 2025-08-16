@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package cgo_bridge
 
 import (
@@ -27,8 +29,8 @@ func TestExecuteTrainingStep(t *testing.T) {
 	engine, err := CreateTrainingEngine(device, config)
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -87,7 +89,7 @@ func TestExecuteTrainingStep(t *testing.T) {
 	// Test that we can create training engine and buffers successfully
 	t.Logf("Successfully created training engine and buffers")
 	t.Logf("Batch size: %d, Input size: %d, Output size: %d", batchSize, inputSize, outputSize)
-	
+
 	// Don't test actual training execution with incomplete setup
 	// The training engine expects proper weight tensor configuration
 	// This test demonstrates:
@@ -109,13 +111,13 @@ func TestExecuteTrainingStepDynamic(t *testing.T) {
 	// Create a simple layer specification for dynamic engine
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 4, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 2, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 4, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 2, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
+			ParamIntCount:  3,
 		},
 	}
 
@@ -140,8 +142,8 @@ func TestExecuteTrainingStepDynamic(t *testing.T) {
 
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -194,7 +196,7 @@ func TestExecuteTrainingStepDynamic(t *testing.T) {
 	t.Logf("Successfully created dynamic training engine with layer specifications")
 	t.Logf("Layer config: %d->%d, Optimizer: %s", inputSize, outputSize, "Adam")
 	t.Logf("Engine pointer: %v", unsafe.Pointer(engine))
-	
+
 	// Don't test actual training execution - requires proper weight tensor setup
 	// This test demonstrates:
 	// 1. Dynamic training engine creation with layer specifications
@@ -216,13 +218,13 @@ func TestExecuteTrainingStepDynamicWithGradients(t *testing.T) {
 	// Create a simple layer specification
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 3, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 2, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 3, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 2, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
+			ParamIntCount:  3,
 		},
 	}
 
@@ -247,8 +249,8 @@ func TestExecuteTrainingStepDynamicWithGradients(t *testing.T) {
 
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -308,7 +310,7 @@ func TestExecuteTrainingStepDynamicWithGradients(t *testing.T) {
 	// Test that we can create dynamic training engine with gradient buffers
 	t.Logf("Successfully created dynamic training engine with gradient buffer support")
 	t.Logf("Engine supports explicit gradient management")
-	
+
 	// Don't test actual training with gradients - requires proper tensor configuration
 	// This test demonstrates:
 	// 1. Dynamic training engine creation with gradient support
@@ -329,13 +331,13 @@ func TestExecuteTrainingStepDynamicWithGradientsPooled(t *testing.T) {
 	// Create a simple layer specification
 	layerSpecs := []LayerSpecC{
 		{
-			LayerType:       0, // Dense
-			InputShape:      [4]int32{1, 2, 0, 0},
-			InputShapeLen:   2,
-			OutputShape:     [4]int32{1, 1, 0, 0},
-			OutputShapeLen:  2,
-			ParamInt:        [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
-			ParamIntCount:   3,
+			LayerType:      0, // Dense
+			InputShape:     [4]int32{1, 2, 0, 0},
+			InputShapeLen:  2,
+			OutputShape:    [4]int32{1, 1, 0, 0},
+			OutputShapeLen: 2,
+			ParamInt:       [8]int32{1, 4, 2, 0, 0, 0, 0, 0}, // HasBias=1, input_size=4, output_size=2
+			ParamIntCount:  3,
 		},
 	}
 
@@ -360,8 +362,8 @@ func TestExecuteTrainingStepDynamicWithGradientsPooled(t *testing.T) {
 
 	if err != nil {
 		// Check for buffer pool exhaustion and skip gracefully
-		if strings.Contains(err.Error(), "buffer pool at capacity") || 
-		   strings.Contains(err.Error(), "failed to allocate") {
+		if strings.Contains(err.Error(), "buffer pool at capacity") ||
+			strings.Contains(err.Error(), "failed to allocate") {
 			t.Skipf("Skipping test - buffer pool exhausted: %v", err)
 			return
 		}
@@ -421,7 +423,7 @@ func TestExecuteTrainingStepDynamicWithGradientsPooled(t *testing.T) {
 	// Test that we can create dynamic training engine with pooled gradient operations
 	t.Logf("Successfully created dynamic training engine with pooled gradient support")
 	t.Logf("Engine supports command pooling for efficient gradient operations")
-	
+
 	// Don't test actual pooled training - requires complex command pool setup
 	// This test demonstrates:
 	// 1. Dynamic training engine creation with pooled operations

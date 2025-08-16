@@ -1,3 +1,6 @@
+//go:build darwin && cgo
+// +build darwin,cgo
+
 #import "bridge_memory.h"
 
 // Allocate Metal buffer

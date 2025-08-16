@@ -2593,3 +2593,65 @@ hyperparameter values
 func (vc *VisualizationCollector) RecordValidationStep(step int, loss, accuracy float64)
 ```
 RecordValidationStep records validation metrics for a single step
+
+#### type OneCycleLRScheduler
+
+```go
+type OneCycleLRScheduler struct {
+        MaxLR      float64
+        TotalSteps int
+        PctStart   float64
+}
+```
+
+OneCycleLRScheduler implements the 1cycle learning rate policy.
+
+#### func  NewOneCycleLRScheduler
+
+```go
+func NewOneCycleLRScheduler(maxLR float64, totalSteps int, pctStart float64) *OneCycleLRScheduler
+```
+
+NewOneCycleLRScheduler creates a OneCycle scheduler.
+
+#### type PolynomialLRScheduler
+
+```go
+type PolynomialLRScheduler struct {
+        Power    float64
+        MaxSteps int
+        EndLR    float64
+}
+```
+
+PolynomialLRScheduler decays learning rate using a polynomial schedule.
+
+#### func  NewPolynomialLRScheduler
+
+```go
+func NewPolynomialLRScheduler(power float64, maxSteps int, endLR float64) *PolynomialLRScheduler
+```
+
+NewPolynomialLRScheduler creates a polynomial scheduler.
+
+#### type CyclicLRScheduler
+
+```go
+type CyclicLRScheduler struct {
+        BaseLR   float64
+        MaxLR    float64
+        StepSize int
+        Gamma    float64
+}
+```
+
+CyclicLRScheduler implements cyclical learning rates with optional decay.
+
+#### func  NewCyclicLRScheduler
+
+```go
+func NewCyclicLRScheduler(baseLR, maxLR float64, stepSize int, gamma float64) *CyclicLRScheduler
+```
+
+NewCyclicLRScheduler creates a cyclic scheduler.
+

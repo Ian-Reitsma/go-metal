@@ -1,3 +1,5 @@
+//go:build darwin && cgo
+
 package optimizer
 
 import (
@@ -90,15 +92,15 @@ func NewSGDOptimizer(
 	numWeights := len(weightShapes)
 
 	sgd := &SGDOptimizerState{
-		LearningRate:    config.LearningRate,
-		Momentum:        config.Momentum,
-		WeightDecay:     config.WeightDecay,
-		Nesterov:        config.Nesterov,
-		WeightBuffers:   make([]unsafe.Pointer, numWeights),
-		StepCount:       0,
-		memoryManager:   memoryManager,
-		device:          device,
-		bufferSizes:     make([]int, numWeights),
+		LearningRate:  config.LearningRate,
+		Momentum:      config.Momentum,
+		WeightDecay:   config.WeightDecay,
+		Nesterov:      config.Nesterov,
+		WeightBuffers: make([]unsafe.Pointer, numWeights),
+		StepCount:     0,
+		memoryManager: memoryManager,
+		device:        device,
+		bufferSizes:   make([]int, numWeights),
 	}
 
 	// Only allocate momentum buffers if momentum > 0
@@ -232,7 +234,7 @@ func (sgd *SGDOptimizerState) GetState() (*OptimizerState, error) {
 	// Extract momentum buffers if momentum is used
 	if sgd.Momentum > 0 && sgd.MomentumBuffers != nil {
 		for i, buffer := range sgd.MomentumBuffers {
-			tensor, err := extractBufferState(buffer, sgd.bufferSizes[i], 
+			tensor, err := extractBufferState(buffer, sgd.bufferSizes[i],
 				fmt.Sprintf("momentum_%d", i), "momentum")
 			if err != nil {
 				return nil, err
@@ -282,7 +284,7 @@ func (sgd *SGDOptimizerState) LoadState(state *OptimizerState) error {
 				return fmt.Errorf("momentum buffer %d not allocated", idx)
 			}
 
-			err := restoreBufferState(sgd.MomentumBuffers[idx], tensor.Data, 
+			err := restoreBufferState(sgd.MomentumBuffers[idx], tensor.Data,
 				sgd.bufferSizes[idx], tensor.Name)
 			if err != nil {
 				return err
